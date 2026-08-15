@@ -1,38 +1,54 @@
-import sys
 import os
-
-# Force include backend path
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BACKEND_DIR = os.path.join(BASE_DIR, "backend")
-
-if BACKEND_DIR not in sys.path:
-    sys.path.insert(0, BACKEND_DIR)
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
+import sys
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from pydantic import BaseModel, EmailStr
 from jose import jwt
-import hashlib
-import secrets
+from mangum import Mangum
 
-try:
-    from app.database import engine, Base, get_db
-    from app.models import User
-    from app.schemas import UserRegister, UserLogin, Token
-except ImportError:
-    from backend.app.database import engine, Base, get_db
-    from backend.app.models import User
-    from backend.app.schemas import UserRegister, UserLogin, Token
+# Database Setup (Writable /tmp for Vercel Serverless)
+DATABASE_URL = "sqlite:////tmp/jpw_services.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-# Initialize tables
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"Table Init Error: {e}")
+# Model
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+# Create tables
+Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Schemas
+class UserRegister(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+# App Config
 app = FastAPI(title="JPW Services API")
 
 app.add_middleware(
@@ -44,8 +60,7 @@ app.add_middleware(
 )
 
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretjwtkey_jpw_services_2026_secure")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
+ALGORITHM = "HS256"
 
 def get_password_hash(password: str) -> str:
     salt = secrets.token_hex(16)
@@ -54,17 +69,15 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
-        if "$" in hashed_password:
-            salt, stored_hash = hashed_password.split("$", 1)
-            calc_hash = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000).hex()
-            return secrets.compare_digest(stored_hash, calc_hash)
-        return False
+        salt, stored_hash = hashed_password.split("$", 1)
+        calc_hash = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000).hex()
+        return secrets.compare_digest(stored_hash, calc_hash)
     except Exception:
         return False
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=10080)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -116,4 +129,6 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 
 @app.get("/api")
 def root():
-    return {"status": "ok", "message": "Backend API is live!"}
+    return {"status": "ok", "message": "API is online"}
+
+handler = Mangum(app)
