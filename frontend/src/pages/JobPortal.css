@@ -1,0 +1,412 @@
+/* ================= PAGE WRAPPER & SCROLL ================= */
+.job-page-wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-surface, #f8fafc);
+  overflow: hidden !important;
+  box-sizing: border-box;
+}
+
+[data-theme='dark'] .job-page-wrapper {
+  background-color: var(--bg-dark, #0b0f19);
+}
+
+.job-page-main {
+  flex: 1;
+  margin-left: 260px !important;
+  padding: 28px 36px;
+  width: calc(100% - 260px);
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+/* Custom Sleek Scrollbar */
+.job-page-main::-webkit-scrollbar {
+  width: 6px;
+}
+.job-page-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+.job-page-main::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+[data-theme='dark'] .job-page-main::-webkit-scrollbar-thumb {
+  background: #1f2937;
+}
+
+/* ================= HEADER ================= */
+.page-header {
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.page-header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.page-header h1 span {
+  color: #3b82f6;
+}
+
+.page-header .subtitle {
+  color: var(--text-secondary, #64748b);
+  font-size: 0.9rem;
+  margin: 3px 0 0 0;
+}
+
+/* ================= ADD PORTAL CARD ================= */
+.add-portal-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .add-portal-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.card-header-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.card-header-line h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+[data-theme='dark'] .card-header-line h3 {
+  color: #f8fafc;
+}
+
+.add-portal-form {
+  display: grid;
+  grid-template-columns: 1.2fr 1.5fr 1.2fr 1.5fr auto;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-group label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
+.input-group input,
+.select-category {
+  background: var(--bg-surface, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-primary, #0f172a);
+  font-size: 0.86rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+[data-theme='dark'] .input-group input,
+[data-theme='dark'] .select-category {
+  background: #0b0f19;
+  border-color: #1f2937;
+  color: #f8fafc;
+}
+
+.input-group input:focus,
+.select-category:focus {
+  border-color: #3b82f6;
+}
+
+.btn-add-portal {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.btn-add-portal:hover {
+  background: #2563eb;
+}
+
+/* ================= CONTROLS & FILTER ================= */
+.job-controls-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.category-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip-btn {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-theme='dark'] .chip-btn {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.chip-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.chip-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 7px 12px;
+  width: 250px;
+}
+
+[data-theme='dark'] .search-bar {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.86rem;
+  color: var(--text-primary, #0f172a);
+  width: 100%;
+}
+
+[data-theme='dark'] .search-bar input {
+  color: #f8fafc;
+}
+
+/* ================= GRID & CARDS ================= */
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+  padding-bottom: 40px;
+}
+
+.job-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 18px;
+  text-decoration: none;
+  color: var(--text-primary, #0f172a);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.25s ease;
+}
+
+[data-theme='dark'] .job-card {
+  background: #111827;
+  border-color: #1f2937;
+  color: #f8fafc;
+}
+
+.job-card:hover {
+  background: var(--bg-surface, #f8fafc);
+  border-color: rgba(59, 130, 246, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='dark'] .job-card:hover {
+  background: #0b0f19;
+}
+
+.job-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.job-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.job-title-wrap h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.job-icon {
+  background: rgba(59, 130, 246, 0.1);
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-badges-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.job-badge {
+  font-size: 0.68rem;
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  padding: 2px 7px;
+  border-radius: 16px;
+  font-weight: 700;
+}
+
+.delete-portal-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.delete-portal-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.job-desc {
+  font-size: 0.84rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.job-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  padding-top: 10px;
+  font-size: 0.76rem;
+}
+
+[data-theme='dark'] .job-card-footer {
+  border-color: #1f2937;
+}
+
+.job-category {
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.job-redirect-link {
+  color: var(--text-secondary, #94a3b8);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.job-card:hover .job-redirect-link {
+  color: #3b82f6;
+}
+
+.empty-search-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--text-secondary, #94a3b8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 1100px) {
+  .add-portal-form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .btn-add-portal {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 900px) {
+  .job-page-main {
+    margin-left: 0 !important;
+    width: 100%;
+    padding: 20px 14px;
+  }
+  .add-portal-form {
+    grid-template-columns: 1fr;
+  }
+  .job-controls-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-bar {
+    width: 100%;
+  }
+}

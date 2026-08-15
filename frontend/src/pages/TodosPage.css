@@ -1,0 +1,134 @@
+.add-todo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.todos-main-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.todo-input-wrap {
+  flex: 1;
+}
+
+.todo-input-wrap input {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.todo-input-wrap input:focus {
+  border-color: var(--accent-blue);
+}
+
+.todos-control-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.chip.active {
+  background: var(--accent-blue);
+  color: #ffffff;
+  border-color: var(--accent-blue);
+}
+
+.todos-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todos-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todo-page-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.2s ease;
+}
+
+.todo-page-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.toggle-task-btn, .delete-task-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.task-content {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.todo-page-card.done .task-content {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.delete-task-btn {
+  color: #64748b;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.todo-page-card:hover .delete-task-btn {
+  opacity: 1;
+}
+
+.delete-task-btn:hover {
+  color: var(--accent-red);
+}

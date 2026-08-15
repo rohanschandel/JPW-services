@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Default Dark Mode Theme */
+  --bg-dark: #07090e;
+  --bg-surface: #0e131f;
+  --bg-card: #131b2e;
+  --bg-card-hover: #1a243d;
+  --border-color: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --accent-red: #ef4444;
+  --font-main: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Professional Clean White Light Mode Theme */
+[data-theme='light'] {
+  --bg-dark: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-gradient: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  --accent-red: #dc2626;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Global scrollable setup - Landing page and normal pages will scroll freely */
+html, body {
+  font-family: var(--font-main);
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  min-height: 100vh;
+  scroll-behavior: smooth;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--accent-gradient);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(59, 130, 246, 0.5);
+}
+
+.btn-secondary {
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.btn-secondary:hover {
+  color: var(--text-primary);
+}
+
+.btn-outline {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.btn-outline:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+}
+
+.gradient-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  display: inline-block;
+}

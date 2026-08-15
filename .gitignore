@@ -1,0 +1,26 @@
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.npm
+*.log
+
+# Python / FastAPI Backend
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+*.env
+
+# Databases & Local Storage
+*.db
+*.sqlite3
+*.sqlite
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

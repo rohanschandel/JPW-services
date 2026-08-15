@@ -1,0 +1,318 @@
+/* ================= MAIN LAYOUT ================= */
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-surface, #f8fafc);
+}
+
+[data-theme='dark'] .dashboard-layout {
+  background-color: var(--bg-dark, #0b0f19);
+}
+
+.dashboard-main {
+  flex: 1;
+  margin-left: 260px; /* Sidebar clearance */
+  padding: 32px 40px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-sizing: border-box;
+}
+
+/* ================= PAGE HEADER ================= */
+.page-header h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.page-header h1 span {
+  color: var(--accent-blue, #4f46e5);
+}
+
+.page-header .subtitle {
+  color: var(--text-secondary, #64748b);
+  font-size: 0.95rem;
+  margin: 6px 0 0 0;
+}
+
+/* ================= DAILY FOCUS CARD ================= */
+.daily-focus-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme='dark'] .daily-focus-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.focus-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent-blue, #4f46e5);
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+.daily-focus-card p {
+  font-size: 1.02rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text-primary, #334155);
+  margin: 0;
+}
+
+[data-theme='dark'] .daily-focus-card p {
+  color: #cbd5e1;
+}
+
+/* ================= UPCOMING SCHEDULE CARD ================= */
+.dashboard-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='dark'] .dashboard-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-title-group h3 {
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+[data-theme='dark'] .card-title-group h3 {
+  color: #f8fafc;
+}
+
+.view-all-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--accent-blue, #4f46e5);
+  text-decoration: none;
+  transition: gap 0.2s ease;
+}
+
+.view-all-link:hover {
+  gap: 8px;
+  text-decoration: underline;
+}
+
+.no-data {
+  text-align: center;
+  padding: 28px 0;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+/* ================= DEADLINES TABLE ROWS ================= */
+.deadlines-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.deadline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--bg-surface, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  gap: 16px;
+  transition: transform 0.2s ease;
+}
+
+[data-theme='dark'] .deadline-row {
+  background: #0b0f19;
+  border-color: #1f2937;
+}
+
+.deadline-row:hover {
+  transform: translateY(-1px);
+}
+
+.deadline-row.is-urgent {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.04) !important;
+}
+
+.tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.tag.assignment {
+  background: rgba(79, 70, 229, 0.12);
+  color: #4f46e5;
+}
+
+.tag.project {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.tag.exam {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.name {
+  flex: 1;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary, #0f172a);
+}
+
+[data-theme='dark'] .name {
+  color: #f8fafc;
+}
+
+.due-date {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+}
+
+.days-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  color: var(--text-secondary, #64748b);
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .days-badge {
+  background: #111827;
+  border-color: #1f2937;
+  color: #94a3b8;
+}
+
+.days-badge.critical {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  font-weight: 700;
+}
+
+/* ================= 3 OVERVIEW STATS ================= */
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme='dark'] .stat-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-blue, #4f46e5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wrap-blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.wrap-orange {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.wrap-purple {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.stat-info h3 {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0 0 3px 0;
+}
+
+[data-theme='dark'] .stat-info h3 {
+  color: #f8fafc;
+}
+
+.stat-info p {
+  font-size: 0.84rem;
+  color: var(--text-secondary, #64748b);
+  margin: 0;
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 900px) {
+  .dashboard-main {
+    margin-left: 0;
+    padding: 24px 18px;
+  }
+}

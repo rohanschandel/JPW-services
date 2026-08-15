@@ -1,0 +1,378 @@
+/* ================= 1. STRICT NO-PAGE-SCROLL LOCK ================= */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden !important; /* Locks the entire outer webpage */
+}
+
+.exams-page-wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-surface, #f8fafc);
+  overflow: hidden !important;
+  box-sizing: border-box;
+}
+
+[data-theme='dark'] .exams-page-wrapper {
+  background-color: var(--bg-dark, #0b0f19);
+}
+
+.exams-page-main {
+  flex: 1;
+  margin-left: 260px !important;
+  padding: 16px 36px 20px 36px !important; /* REDUCED UPPER PADDING */
+  width: calc(100% - 260px);
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+/* ================= 2. COMPACT HEADER ================= */
+.page-header {
+  margin-bottom: 14px !important; /* REDUCED BOTTOM SPACE */
+  flex-shrink: 0;
+}
+
+.page-header h1 {
+  font-size: 1.65rem !important;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.page-header h1 span {
+  color: #6366f1;
+}
+
+.page-header .subtitle {
+  color: var(--text-secondary, #64748b);
+  font-size: 0.88rem !important;
+  margin: 3px 0 0 0 !important;
+}
+
+/* ================= 3. SPLIT GRID LAYOUT ================= */
+.tracker-split-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+  align-items: start;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Left Form Box - Fully Fixed in Viewport */
+.tracker-form-container {
+  width: 100%;
+}
+
+.tracker-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme='dark'] .tracker-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.tracker-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tracker-card-header h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.icon-purple {
+  color: #6366f1;
+}
+
+.tracker-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-group label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
+.input-group input,
+.select-type-input {
+  background: var(--bg-surface, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+  color: var(--text-primary, #0f172a);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+[data-theme='dark'] .input-group input,
+[data-theme='dark'] .select-type-input {
+  background: #0b0f19;
+  border-color: #1f2937;
+  color: #f8fafc;
+}
+
+.input-group input:focus,
+.select-type-input:focus {
+  border-color: #6366f1;
+}
+
+.btn-full {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 2px;
+  transition: all 0.2s ease;
+}
+
+.btn-purple {
+  background: #6366f1;
+  color: #ffffff;
+}
+
+.btn-purple:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+/* ================= 4. RIGHT SIDE: SCROLLABLE SECTION ONLY ================= */
+.tracker-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  height: calc(100vh - 100px); /* Strictly fits the screen below header */
+  overflow: hidden;
+}
+
+.list-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.list-header-row h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.sorted-badge {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+/* Scrollable Container (ONLY this container has a scrollbar) */
+.deadlines-vertical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: scroll !important; /* Forced active vertical scrolling */
+  overflow-x: hidden;
+  padding-right: 8px;
+  padding-bottom: 40px;
+  box-sizing: border-box;
+}
+
+/* Custom Sleek Scrollbar */
+.deadlines-vertical-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.deadlines-vertical-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+}
+
+.deadlines-vertical-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+[data-theme='dark'] .deadlines-vertical-list::-webkit-scrollbar-thumb {
+  background: #1f2937;
+}
+
+.deadlines-vertical-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Cards Design */
+.empty-tracker-box {
+  background: var(--bg-card, #ffffff);
+  border: 1px dashed var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  padding: 40px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.9rem;
+}
+
+.deadline-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  flex-shrink: 0;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+[data-theme='dark'] .deadline-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+.deadline-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.deadline-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.deadline-top-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.badge-assignment {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+.badge-project {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.date-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
+.deadline-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  word-break: break-word;
+}
+
+[data-theme='dark'] .deadline-title {
+  color: #f8fafc;
+}
+
+.deadline-subject-tag {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #64748b);
+  margin: 0;
+}
+
+.urgent-deadline-card {
+  border: 1px solid #ef4444 !important;
+  background: rgba(239, 68, 68, 0.02) !important;
+}
+
+.red-alert-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.deadline-delete-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+}
+
+.deadline-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
