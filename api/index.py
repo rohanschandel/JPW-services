@@ -1,14 +1,12 @@
 from http.server import BaseHTTPRequestHandler
 import json
-import urllib.request
-import urllib.error
+import sqlite3
 import hashlib
 import secrets
 import base64
 import hmac
 import time
 import os
-import sqlite3
 
 DB_PATH = "/tmp/jpw_services.db"
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretjwtkey_jpw_services_2026_secure")
@@ -82,24 +80,65 @@ class handler(BaseHTTPRequestHandler):
         init_db()
         path = self.path.split("?")[0].lower()
 
+        # 1. Auth Profile
         if "me" in path or "profile" in path:
             return self._send_json(200, {
                 "id": 1,
-                "full_name": "User",
-                "email": "user@example.com"
+                "full_name": "Rohan Singh",
+                "email": "rohan8688832@gmail.com"
             })
 
-        if "stats" in path or "count" in path or "summary" in path:
-            return self._send_json(200, {
-                "todos": 0, "links": 0, "exams": 0, "projects": 0, "assignments": 0, "hr": 0, "workspace": 0
-            })
-
-        if "quote" in path:
+        # 2. Daily Focus / Quote
+        if "quote" in path or "daily-focus" in path:
             return self._send_json(200, {
                 "quote": "Focus is a muscle. The more you practice it, the stronger it becomes.",
-                "author": "JPW"
+                "author": "JPW Services"
             })
 
+        # 3. Overview Statistics
+        if any(k in path for k in ["stats", "summary", "count", "overview"]):
+            return self._send_json(200, {
+                "saved_links": 0,
+                "active_projects": 0,
+                "hr_contacts": 0,
+                "upcoming_exams": 0,
+                "todos": 0,
+                "links": 0,
+                "exams": 0,
+                "projects": 0
+            })
+
+        # 4. Exams & Academic Deadlines (Matching Frontend Object Structure)
+        if any(k in path for k in ["exam", "assignment", "deadline", "academic"]):
+            return self._send_json(200, [
+                {
+                    "id": 1,
+                    "title": "Semester Final Examinations",
+                    "subject": "Computer Applications",
+                    "due_date": "2026-09-15",
+                    "date": "2026-09-15",
+                    "status": "Upcoming",
+                    "type": "Exam"
+                }
+            ])
+
+        # 5. Project Links
+        if "project" in path:
+            return self._send_json(200, [])
+
+        # 6. Todos / Daily Tasks
+        if "todo" in path or "task" in path:
+            return self._send_json(200, [])
+
+        # 7. HR Contacts
+        if "hr" in path or "contact" in path:
+            return self._send_json(200, [])
+
+        # 8. Saved Links / Workspace
+        if "link" in path or "workspace" in path or "tool" in path:
+            return self._send_json(200, [])
+
+        # Default list fallback
         return self._send_json(200, [])
 
     def do_POST(self):
@@ -118,7 +157,6 @@ class handler(BaseHTTPRequestHandler):
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
 
-            # Registration
             if "register" in path:
                 full_name = body.get("full_name", "").strip() or "User"
                 email = body.get("email", "").lower().strip()
@@ -146,7 +184,6 @@ class handler(BaseHTTPRequestHandler):
                     "user": {"id": user_id, "full_name": full_name, "email": email}
                 })
 
-            # Login (with cold-start resilience)
             elif "login" in path:
                 email = body.get("email", "").lower().strip()
                 password = body.get("password", "")
@@ -164,7 +201,6 @@ class handler(BaseHTTPRequestHandler):
                         return self._send_json(401, {"detail": "Invalid email or password."})
                     user_id, full_name = user[0], user[1]
                 else:
-                    # Cold start auto-sync: create account on valid login credentials
                     hashed_pwd = get_password_hash(password)
                     full_name = email.split("@")[0].capitalize()
                     cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
