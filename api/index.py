@@ -1,31 +1,49 @@
 import sys
 import os
+import traceback
 
-# Resolve paths
+# Setup paths dynamically
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(current_dir)
 backend_dir = os.path.join(root_dir, "backend")
 
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
+for p in [root_dir, backend_dir]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.database import engine, Base
-from backend.app import models
-from backend.app.routers import auth, todos, links, exams, projects
 
-# Auto-create all tables on serverless boot
+# Safe dynamic backend imports
+try:
+    from backend.app.database import engine, Base
+    from backend.app import models
+    from backend.app.routers import auth, todos, links, exams, projects
+except ImportError:
+    from app.database import engine, Base
+    from app import models
+    from app.routers import auth, todos, links, exams, projects
+
+# Ensure SQLite tables exist before serving requests
 try:
     Base.metadata.create_all(bind=engine)
 except Exception as e:
-    print(f"Table sync notice: {e}")
+    print(f"Table Init Error: {e}")
 
 app = FastAPI(title="JPW Services API")
 
-# Setup CORS
+# Global Exception Handler taaki exact crash reason UI/Network me dikh jaye
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_msg = traceback.format_exc()
+    print("CRITICAL SERVERLESS EXCEPTION:", error_msg)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": error_msg}
+    )
+
+# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,8 +61,8 @@ app.include_router(projects.router, prefix="/api")
 
 @app.get("/api")
 def root():
-    return {"status": "ok", "message": "Backend API is live!"}
+    return {"status": "ok", "message": "JPW Services Backend is running!"}
 
 @app.get("/api/health")
-def health_check():
+def health():
     return {"status": "healthy"}

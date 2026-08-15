@@ -5,12 +5,20 @@ from jose import jwt
 import bcrypt
 import os
 
-from backend.app.database import get_db, engine, Base
-from backend.app.models import User
-from backend.app.schemas import UserRegister, UserLogin, Token
+try:
+    from backend.app.database import get_db, engine, Base
+    from backend.app.models import User
+    from backend.app.schemas import UserRegister, UserLogin, Token
+except ImportError:
+    from app.database import get_db, engine, Base
+    from app.models import User
+    from app.schemas import UserRegister, UserLogin, Token
 
-# Ensure tables exist
-Base.metadata.create_all(bind=engine)
+# Ensure tables are created immediately in this worker
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception:
+    pass
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -41,7 +49,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     clean_email = user_data.email.lower().strip()
-    
+
     existing_user = db.query(User).filter(User.email == clean_email).first()
     if existing_user:
         raise HTTPException(

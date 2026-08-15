@@ -3,11 +3,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Handle database path safely for Vercel Serverless
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./jpw_services.db")
 
-# If running on Vercel Serverless or /tmp is required for SQLite write permissions
-if DATABASE_URL.startswith("sqlite") and (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")):
+# Force SQLite into /tmp in Serverless environment
+is_serverless = os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or "/var/task" in os.getcwd()
+if DATABASE_URL.startswith("sqlite") and is_serverless:
     DATABASE_URL = "sqlite:////tmp/jpw_services.db"
 
 if DATABASE_URL.startswith("sqlite"):
