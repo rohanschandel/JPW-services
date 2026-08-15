@@ -13,13 +13,11 @@ from pydantic import BaseModel, EmailStr
 from jose import jwt
 from mangum import Mangum
 
-# Database Setup (Writable /tmp for Vercel Serverless)
 DATABASE_URL = "sqlite:////tmp/jpw_services.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Model
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -28,7 +26,6 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
 def get_db():
@@ -38,7 +35,6 @@ def get_db():
     finally:
         db.close()
 
-# Schemas
 class UserRegister(BaseModel):
     full_name: str
     email: EmailStr
@@ -48,7 +44,6 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-# App Config
 app = FastAPI(title="JPW Services API")
 
 app.add_middleware(
