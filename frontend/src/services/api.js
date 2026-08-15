@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const rawBaseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-// Remove trailing slash if present to avoid double slashes like //auth/login
 const baseURL = rawBaseURL.replace(/\/+$/, '');
 
 const API = axios.create({
