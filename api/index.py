@@ -1,11 +1,14 @@
 import sys
 import os
 
-# Add backend directory to sys.path so app modules and routers resolve cleanly
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend')))
+# Set root project path
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
-from app.main import app, handler
+# Import using full package hierarchy so Pylance and Vercel resolve accurately
+from backend.app.main import app, handler
 
-# Export for Vercel Serverless Functions
+# Export for Vercel Serverless
 app = app
 handler = handler
