@@ -23,45 +23,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS todos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            title TEXT NOT NULL,
-            completed BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS links (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            title TEXT NOT NULL,
-            url TEXT NOT NULL,
-            category TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS exams (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            exam_name TEXT NOT NULL,
-            date TEXT,
-            status TEXT DEFAULT 'Upcoming',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            title TEXT NOT NULL,
-            description TEXT,
-            status TEXT DEFAULT 'In Progress',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
     conn.commit()
     conn.close()
 
@@ -116,31 +77,35 @@ class handler(BaseHTTPRequestHandler):
         init_db()
         path = self.path.split("?")[0].lower()
 
-        # Auth Profile Check (/api/auth/me or /api/users/me)
-        if "me" in path or "profile" in path:
+        # Auth User verification
+        if path.endswith("/me") or "/me" in path or "profile" in path:
             return self._send_json(200, {
                 "id": 1,
                 "full_name": "Rohan Singh",
-                "email": "user@example.com"
+                "email": "rohanschandel@gmail.com"
             })
-        
-        # Stats Object Endpoint
-        elif "stats" in path or "summary" in path:
+
+        # Overview Stats
+        if "stats" in path or "count" in path or "summary" in path:
             return self._send_json(200, {
                 "todos": 0,
                 "links": 0,
                 "exams": 0,
                 "projects": 0,
+                "assignments": 0,
                 "hr": 0,
                 "workspace": 0
             })
 
-        # List endpoints
-        elif any(k in path for k in ["todos", "links", "exams", "projects", "hr", "workspace", "daily", "tools"]):
-            return self._send_json(200, [])
+        # Quote of the day
+        if "quote" in path:
+            return self._send_json(200, {
+                "quote": "Focus is a muscle. The more you practice it, the stronger it becomes.",
+                "author": "JPW"
+            })
 
-        else:
-            return self._send_json(200, {"status": "ok", "message": "API is online"})
+        # Return empty list [] by default for ANY other GET call to prevent .map() crash
+        return self._send_json(200, [])
 
     def do_POST(self):
         init_db()
@@ -157,7 +122,6 @@ class handler(BaseHTTPRequestHandler):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # Registration
         if "register" in path:
             full_name = body.get("full_name", "").strip()
             email = body.get("email", "").lower().strip()
@@ -170,7 +134,7 @@ class handler(BaseHTTPRequestHandler):
             cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
             if cursor.fetchone():
                 conn.close()
-                return self._send_json(400, {"detail": "Account already exists with this email."})
+                return self._send_json(400, {"detail": "Account already exists."})
 
             hashed_pwd = get_password_hash(password)
             cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
@@ -185,7 +149,6 @@ class handler(BaseHTTPRequestHandler):
                 "user": {"id": user_id, "full_name": full_name, "email": email}
             })
 
-        # Login
         elif "login" in path:
             email = body.get("email", "").lower().strip()
             password = body.get("password", "")
@@ -204,7 +167,6 @@ class handler(BaseHTTPRequestHandler):
                 "user": {"id": user[0], "full_name": user[1], "email": email}
             })
 
-        # Generic creation fallback
         else:
             conn.close()
             return self._send_json(200, {"status": "success", "data": body})
