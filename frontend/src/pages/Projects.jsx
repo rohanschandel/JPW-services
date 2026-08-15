@@ -176,7 +176,7 @@ export default function Projects() {
             projects.map((project) => (
               <div key={project.id} className="project-card">
                 <div className="project-card-top">
-                  <h3 className="project-title" title={project.name}>{project.name}</h3>
+                  <h3 className="project-title-text" title={project.name}>{project.name}</h3>
                   <span className={`status-pill ${getStatusBadgeClass(project.status)}`}>
                     {project.status}
                   </span>
