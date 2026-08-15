@@ -1,170 +1,162 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import API from '../services/api';
-import { Sparkles, Calendar, Bookmark, Users, FolderGit2, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import './Dashboard.css';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
-export default function Dashboard() {
-  const user = JSON.parse(localStorage.getItem('jpw_user')) || { full_name: 'Developer' };
-
-  const quotes = [
-    '“First, solve the problem. Then, write the code.” – John Johnson',
-    '“Focus is a muscle. The more you practice it, the stronger it becomes.”',
-    '“Small daily disciplines lead to massive long-term achievements.”'
-  ];
-  const [quote] = useState(quotes[Math.floor(Math.random() * quotes.length)]);
-
+const Dashboard = () => {
+  const [user, setUser] = useState({ full_name: "Rohan Singh", email: "" });
+  const [stats, setStats] = useState({ saved_links: 0, active_projects: 0, hr_contacts: 0 });
   const [exams, setExams] = useState([]);
-  const [assignments, setAssignments] = useState([]);
-  const [bookmarksCount, setBookmarksCount] = useState(0);
-  const [projectsCount, setProjectsCount] = useState(0);
-  const [hrCount, setHrCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       try {
-        const [exRes, asRes, bmRes, prRes, hrRes] = await Promise.all([
-          API.get('/exams/').catch(() => ({ data: [] })),
-          API.get('/assignments/').catch(() => ({ data: [] })),
-          API.get('/bookmarks/').catch(() => ({ data: [] })),
-          API.get('/projects/').catch(() => ({ data: [] })),
-          API.get('/hr/').catch(() => ({ data: [] }))
-        ]);
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        setExams(exRes.data || []);
-        setAssignments(asRes.data || []);
-        setBookmarksCount((bmRes.data || []).length);
-        setProjectsCount((prRes.data || []).length);
-        setHrCount((hrRes.data || []).length);
+        // Fetch user profile
+        const userRes = await axios.get("/api/auth/me", { headers }).catch(() => null);
+        if (userRes?.data) setUser(userRes.data);
+
+        // Fetch stats
+        const statsRes = await axios.get("/api/stats", { headers }).catch(() => null);
+        if (statsRes?.data && typeof statsRes.data === "object") setStats(statsRes.data);
+
+        // Fetch exams/deadlines
+        const examsRes = await axios.get("/api/exams", { headers }).catch(() => null);
+        if (Array.isArray(examsRes?.data)) {
+          setExams(examsRes.data);
+        } else {
+          setExams([]);
+        }
       } catch (err) {
-        console.error('Error loading dashboard stats:', err);
+        console.error("Dashboard Load Error:", err);
+        setExams([]);
       }
     };
-    fetchDashboardData();
+
+    fetchData();
   }, []);
 
-  // Calculate Days Remaining
-  const getDaysLeft = (targetDateStr) => {
-    if (!targetDateStr) return 999;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(targetDateStr);
-    target.setHours(0, 0, 0, 0);
-    const diffTime = target - today;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
-  // Combine exams & assignments
-  const allDeadlines = [
-    ...exams.map((e) => ({
-      id: `e-${e.id}`,
-      title: e.title,
-      date: e.exact_date,
-      type: 'Exam',
-      daysLeft: getDaysLeft(e.exact_date)
-    })),
-    ...assignments.map((a) => {
-      const isProject = a.subject?.startsWith('[Project]');
-      return {
-        id: `a-${a.id}`,
-        title: a.title,
-        date: a.deadline_date,
-        type: isProject ? 'Project' : 'Assignment',
-        daysLeft: getDaysLeft(a.deadline_date)
-      };
-    })
-  ]
-    .filter((item) => item.daysLeft >= 0) // Only future/today deadlines
-    .sort((a, b) => a.daysLeft - b.daysLeft); // Nearest deadline first
+  const safeExams = Array.isArray(exams) ? exams : [];
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-
-      <main className="dashboard-main">
-        {/* Top Greeting */}
-        <header className="page-header">
-          <div>
-            <h1>Welcome back, <span>{user.full_name}</span> 👋</h1>
-            <p className="subtitle">Here is your daily command center overview.</p>
+    <div className="min-h-screen bg-[#070c18] text-white flex">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-gray-800/80 bg-[#0b1329] p-6 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold">JPW</div>
+            <span className="text-xl font-bold tracking-wide">JPW<span className="text-blue-500">-services</span></span>
           </div>
+
+          <nav className="space-y-2">
+            <a href="/dashboard" className="flex items-center gap-3 px-4 py-3 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-xl font-medium">
+              📊 Dashboard
+            </a>
+            <a href="/todos" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl transition">
+              📝 To-Dos & Tasks
+            </a>
+            <a href="/ai-tools" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl transition">
+              🤖 AI Tools Hub
+            </a>
+            <a href="/job-portal" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl transition">
+              💼 JobPortal
+            </a>
+            <a href="/hr-contacts" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl transition">
+              👥 HR Contacts
+            </a>
+            <a href="/project-links" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl transition">
+              🔗 Project Links
+            </a>
+            <a href="/exams" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl transition">
+              📅 Exams & Deadlines
+            </a>
+            <a href="/workspace" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl transition">
+              📁 Workspace
+            </a>
+          </nav>
+        </div>
+
+        <button
+          onClick={() => {
+            localStorage.clear();
+            window.location.href = "/auth";
+          }}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition"
+        >
+          🚪 Sign Out
+        </button>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 p-10 overflow-y-auto">
+        <header className="mb-8">
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            Welcome back, <span className="text-blue-500">{user.full_name || "Rohan"}</span> 👋
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">Here is your daily command center overview.</p>
         </header>
 
-        {/* Daily Focus Card */}
-        <div className="daily-focus-card">
-          <div className="focus-header">
-            <Sparkles size={15} color="#3b82f6" />
-            <span>DAILY FOCUS</span>
-          </div>
-          <p>{quote}</p>
-        </div>
+        {/* Daily Focus */}
+        <section className="mb-8 p-6 bg-[#0e172e] border border-blue-500/20 rounded-2xl relative overflow-hidden shadow-lg">
+          <span className="text-xs uppercase tracking-wider font-bold text-blue-400 block mb-2">✨ Daily Focus</span>
+          <p className="text-lg italic text-gray-200">“Focus is a muscle. The more you practice it, the stronger it becomes.”</p>
+        </section>
 
-        {/* Upcoming Schedule Section */}
-        <div className="dashboard-card">
-          <div className="card-top">
-            <div className="card-title-group">
-              <Calendar size={18} color="#3b82f6" />
-              <h3>Upcoming Academic Deadlines & Exams</h3>
+        {/* Upcoming Academic Deadlines */}
+        <section className="mb-8 p-6 bg-[#0e172e] border border-gray-800 rounded-2xl">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              📅 Upcoming Academic Deadlines & Exams
+            </h2>
+            <a href="/exams" className="text-sm text-blue-400 hover:underline">Manage Schedule →</a>
+          </div>
+
+          {safeExams.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              No upcoming exams or assignments scheduled.
             </div>
-            <Link to="/exams" className="view-all-link">
-              Manage Schedule <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="deadlines-table">
-            {allDeadlines.length === 0 ? (
-              <p className="no-data">No upcoming exams or assignments scheduled.</p>
-            ) : (
-              allDeadlines.slice(0, 3).map((item) => (
-                <div key={item.id} className={`deadline-row ${item.daysLeft <= 1 ? 'is-urgent' : ''}`}>
-                  <span className={`tag ${item.type.toLowerCase()}`}>{item.type}</span>
-                  <span className="name">{item.title}</span>
-                  <span className="due-date">
-                    Target: {new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </span>
-                  <span className={`days-badge ${item.daysLeft <= 1 ? 'critical' : ''}`}>
-                    {item.daysLeft === 0 ? 'Today' : item.daysLeft === 1 ? 'Tomorrow' : `In ${item.daysLeft} days`}
-                  </span>
+          ) : (
+            <div className="space-y-3">
+              {safeExams.map((exam, idx) => (
+                <div key={exam.id || idx} className="p-4 bg-gray-900/60 border border-gray-800 rounded-xl flex justify-between items-center">
+                  <span className="font-medium">{exam.title || exam.exam_name || "Academic Deadline"}</span>
+                  <span className="text-xs text-blue-400 px-3 py-1 bg-blue-500/10 rounded-full">{exam.date || "Scheduled"}</span>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Dashboard Widgets */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-6 bg-[#0e172e] border border-gray-800 rounded-2xl flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-xl">🔖</div>
+            <div>
+              <div className="text-2xl font-bold">{stats.saved_links ?? 0} Saved Links</div>
+              <div className="text-gray-400 text-xs mt-0.5">Website Bookmarks</div>
+            </div>
           </div>
-        </div>
 
-        {/* 3 Stats Overview Cards */}
-        <div className="dashboard-stats-grid">
-          <Link to="/bookmarks" className="stat-card">
-            <div className="stat-icon wrap-blue">
-              <Bookmark size={20} />
+          <div className="p-6 bg-[#0e172e] border border-gray-800 rounded-2xl flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-xl">⚡</div>
+            <div>
+              <div className="text-2xl font-bold">{stats.active_projects ?? 0} Active Projects</div>
+              <div className="text-gray-400 text-xs mt-0.5">Live Builds & Repos</div>
             </div>
-            <div className="stat-info">
-              <h3>{bookmarksCount} Saved Links</h3>
-              <p>Website Bookmarks</p>
-            </div>
-          </Link>
+          </div>
 
-          <Link to="/projects" className="stat-card">
-            <div className="stat-icon wrap-orange">
-              <FolderGit2 size={20} />
+          <div className="p-6 bg-[#0e172e] border border-gray-800 rounded-2xl flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-xl">👥</div>
+            <div>
+              <div className="text-2xl font-bold">{stats.hr_contacts ?? 0} HR Contacts</div>
+              <div className="text-gray-400 text-xs mt-0.5">Recruiter CRM Directory</div>
             </div>
-            <div className="stat-info">
-              <h3>{projectsCount} Active Projects</h3>
-              <p>Live Builds & Repos</p>
-            </div>
-          </Link>
-
-          <Link to="/hr-directory" className="stat-card">
-            <div className="stat-icon wrap-purple">
-              <Users size={20} />
-            </div>
-            <div className="stat-info">
-              <h3>{hrCount} HR Contacts</h3>
-              <p>Recruiter CRM Directory</p>
-            </div>
-          </Link>
+          </div>
         </div>
       </main>
     </div>
   );
-}
+};
+
+export default Dashboard;
