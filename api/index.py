@@ -1,8 +1,12 @@
 import os
 import sys
+import json
+import base64
+import hmac
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+import time
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.responses import JSONResponse
@@ -11,19 +15,16 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel, EmailStr
-from jose import jwt
-from mangum import Mangum
 
-# Database Setup (Writable /tmp for Vercel Serverless environment)
+# Database Setup in writable /tmp directory for Vercel Serverless
 DATABASE_URL = "sqlite:////tmp/jpw_services.db"
 engine = create_engine(
-    DATABASE_URL, 
+    DATABASE_URL,
     connect_args={"check_same_thread": False}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Models
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -57,7 +58,7 @@ class UserLogin(BaseModel):
 
 app = FastAPI(title="JPW Services API")
 
-# Global Exception Catcher taaki koi unhandled crash na ho
+# Global Exception Catcher
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
@@ -65,7 +66,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": str(exc)}
     )
 
-# CORS Configuration
+# CORS Setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -75,8 +76,8 @@ app.add_middleware(
 )
 
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretjwtkey_jpw_services_2026_secure")
-ALGORITHM = "HS256"
 
+# Pure Python Password Hashing (Zero Binary Dependency)
 def get_password_hash(password: str) -> str:
     salt = secrets.token_hex(16)
     pwd_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000).hex()
@@ -90,13 +91,25 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         return False
 
-def create_access_token(data: dict) -> str:
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=10080)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+# Pure Native JWT Generator (Zero jose/cryptography dependency)
+def b64_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')
 
-# Registration Handler (Dual route support to avoid rewrite mismatch)
+def create_access_token(data: dict) -> str:
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = data.copy()
+    payload["exp"] = int(time.time()) + (7 * 24 * 60 * 60) # 7 Days Validity
+    
+    header_b64 = b64_encode(json.dumps(header).encode('utf-8'))
+    payload_b64 = b64_encode(json.dumps(payload).encode('utf-8'))
+    
+    signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
+    signature = hmac.new(SECRET_KEY.encode('utf-8'), signing_input, hashlib.sha256).digest()
+    signature_b64 = b64_encode(signature)
+    
+    return f"{header_b64}.{payload_b64}.{signature_b64}"
+
+# Register Route
 @app.post("/auth/register", status_code=status.HTTP_201_CREATED)
 @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
@@ -115,7 +128,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    token = create_access_token(data={"sub": str(new_user.id), "email": new_user.email})
+    token = create_access_token({"sub": str(new_user.id), "email": new_user.email})
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -126,7 +139,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         }
     }
 
-# Login Handler (Dual route support)
+# Login Route
 @app.post("/auth/login")
 @app.post("/api/auth/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
@@ -135,7 +148,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-    token = create_access_token(data={"sub": str(user.id), "email": user.email})
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -149,7 +162,4 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 @app.get("/")
 @app.get("/api")
 def root():
-    return {"status": "ok", "message": "API is online"}
-
-# Mangum serverless entry adapter
-handler = Mangum(app)
+    return {"status": "ok", "message": "JPW Services Backend is Live!"}
