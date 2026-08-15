@@ -114,31 +114,37 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         init_db()
-        path = self.path.split("?")[0]
+        path = self.path.split("?")[0].lower()
 
-        # Dashboard endpoints returning safe arrays
-        if "todos" in path:
+        # Auth Profile Check (/api/auth/me or /api/users/me)
+        if "me" in path or "profile" in path:
+            return self._send_json(200, {
+                "id": 1,
+                "full_name": "Rohan Singh",
+                "email": "user@example.com"
+            })
+        
+        # Stats Object Endpoint
+        elif "stats" in path or "summary" in path:
+            return self._send_json(200, {
+                "todos": 0,
+                "links": 0,
+                "exams": 0,
+                "projects": 0,
+                "hr": 0,
+                "workspace": 0
+            })
+
+        # List endpoints
+        elif any(k in path for k in ["todos", "links", "exams", "projects", "hr", "workspace", "daily", "tools"]):
             return self._send_json(200, [])
-        elif "links" in path:
-            return self._send_json(200, [])
-        elif "exams" in path:
-            return self._send_json(200, [])
-        elif "projects" in path:
-            return self._send_json(200, [])
-        elif "hr" in path:
-            return self._send_json(200, [])
-        elif "workspace" in path:
-            return self._send_json(200, [])
-        elif "daily-tasks" in path or "daily_tasks" in path:
-            return self._send_json(200, [])
-        elif "stats" in path:
-            return self._send_json(200, {"todos": 0, "links": 0, "exams": 0, "projects": 0})
+
         else:
-            return self._send_json(200, {"status": "ok", "message": "JPW Services Backend is running!"})
+            return self._send_json(200, {"status": "ok", "message": "API is online"})
 
     def do_POST(self):
         init_db()
-        path = self.path.split("?")[0]
+        path = self.path.split("?")[0].lower()
         
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
@@ -151,7 +157,7 @@ class handler(BaseHTTPRequestHandler):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # Auth Register
+        # Registration
         if "register" in path:
             full_name = body.get("full_name", "").strip()
             email = body.get("email", "").lower().strip()
@@ -179,7 +185,7 @@ class handler(BaseHTTPRequestHandler):
                 "user": {"id": user_id, "full_name": full_name, "email": email}
             })
 
-        # Auth Login
+        # Login
         elif "login" in path:
             email = body.get("email", "").lower().strip()
             password = body.get("password", "")
@@ -198,7 +204,7 @@ class handler(BaseHTTPRequestHandler):
                 "user": {"id": user[0], "full_name": user[1], "email": email}
             })
 
-        # General Create item fallback
+        # Generic creation fallback
         else:
             conn.close()
             return self._send_json(200, {"status": "success", "data": body})
