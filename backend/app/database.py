@@ -3,9 +3,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+# Handle database path safely for Vercel Serverless
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./jpw_services.db")
 
-# Vercel serverless has write permissions only in /tmp directory
+# If running on Vercel Serverless or /tmp is required for SQLite write permissions
 if DATABASE_URL.startswith("sqlite") and (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")):
     DATABASE_URL = "sqlite:////tmp/jpw_services.db"
 
