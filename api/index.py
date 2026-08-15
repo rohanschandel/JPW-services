@@ -4,7 +4,8 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -13,11 +14,16 @@ from pydantic import BaseModel, EmailStr
 from jose import jwt
 from mangum import Mangum
 
+# Database Setup (Writable /tmp for Vercel Serverless environment)
 DATABASE_URL = "sqlite:////tmp/jpw_services.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    DATABASE_URL, 
+    connect_args={"check_same_thread": False}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# Models
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -26,7 +32,11 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-Base.metadata.create_all(bind=engine)
+# Ensure database tables are created
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Table Init Error: {e}")
 
 def get_db():
     db = SessionLocal()
@@ -35,6 +45,7 @@ def get_db():
     finally:
         db.close()
 
+# Schemas
 class UserRegister(BaseModel):
     full_name: str
     email: EmailStr
@@ -46,6 +57,15 @@ class UserLogin(BaseModel):
 
 app = FastAPI(title="JPW Services API")
 
+# Global Exception Catcher taaki koi unhandled crash na ho
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)}
+    )
+
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -76,6 +96,8 @@ def create_access_token(data: dict) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+# Registration Handler (Dual route support to avoid rewrite mismatch)
+@app.post("/auth/register", status_code=status.HTTP_201_CREATED)
 @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     clean_email = user_data.email.lower().strip()
@@ -104,6 +126,8 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         }
     }
 
+# Login Handler (Dual route support)
+@app.post("/auth/login")
 @app.post("/api/auth/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
     clean_email = login_data.email.lower().strip()
@@ -122,8 +146,10 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         }
     }
 
+@app.get("/")
 @app.get("/api")
 def root():
     return {"status": "ok", "message": "API is online"}
 
+# Mangum serverless entry adapter
 handler = Mangum(app)
