@@ -1,32 +1,47 @@
 from http.server import BaseHTTPRequestHandler
 import json
-import sqlite3
 import hashlib
 import secrets
 import base64
 import hmac
 import time
 import os
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-DB_PATH = "/tmp/jpw_services.db"
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretjwtkey_jpw_services_2026_secure")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////tmp/jpw_services.db")
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            hashed_password TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Supabase requires standard postgresql:// prefix
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-init_db()
+try:
+    if "sqlite" in DATABASE_URL:
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    else:
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
+except Exception as e:
+    print(f"Engine Init Error: {e}")
+    DATABASE_URL = "sqlite:////tmp/jpw_services.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Schema Warning: {e}")
 
 def get_password_hash(password: str) -> str:
     salt = secrets.token_hex(16)
@@ -74,39 +89,21 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        init_db()
         path = self.path.split("?")[0].lower()
 
         if "me" in path or "profile" in path:
-            return self._send_json(200, {
-                "id": 1,
-                "full_name": "Rohan Singh",
-                "email": "rohanschandel@gmail.com"
-            })
+            return self._send_json(200, {"id": 1, "full_name": "Rohan Singh", "email": "rohanschandel@gmail.com"})
 
         if "stats" in path or "count" in path or "summary" in path:
-            return self._send_json(200, {
-                "todos": 0,
-                "links": 0,
-                "exams": 0,
-                "projects": 0,
-                "assignments": 0,
-                "hr": 0,
-                "workspace": 0
-            })
+            return self._send_json(200, {"todos": 0, "links": 0, "exams": 0, "projects": 0, "assignments": 0, "hr": 0, "workspace": 0})
 
         if "quote" in path:
-            return self._send_json(200, {
-                "quote": "Focus is a muscle. The more you practice it, the stronger it becomes.",
-                "author": "JPW"
-            })
+            return self._send_json(200, {"quote": "Focus is a muscle. The more you practice it, the stronger it becomes.", "author": "JPW"})
 
         return self._send_json(200, [])
 
     def do_POST(self):
-        init_db()
         path = self.path.split("?")[0].lower()
-        
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
         
@@ -115,69 +112,58 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        db = SessionLocal()
 
-        # Registration
-        if "register" in path:
-            full_name = body.get("full_name", "").strip() or "User"
-            email = body.get("email", "").lower().strip()
-            password = body.get("password", "")
+        try:
+            # Registration
+            if "register" in path:
+                full_name = body.get("full_name", "").strip() or "User"
+                email = body.get("email", "").lower().strip()
+                password = body.get("password", "")
 
-            if not email or not password:
-                conn.close()
-                return self._send_json(400, {"detail": "Email and password are required"})
+                if not email or not password:
+                    return self._send_json(400, {"detail": "Email and password are required"})
 
-            cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
-            if cursor.fetchone():
-                conn.close()
-                return self._send_json(400, {"detail": "Account already exists."})
+                existing_user = db.query(User).filter(User.email == email).first()
+                if existing_user:
+                    return self._send_json(400, {"detail": "Account already exists with this email."})
 
-            hashed_pwd = get_password_hash(password)
-            cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
-            conn.commit()
-            user_id = cursor.lastrowid
-            conn.close()
-
-            token = create_access_token({"sub": str(user_id), "email": email})
-            return self._send_json(201, {
-                "access_token": token,
-                "token_type": "bearer",
-                "user": {"id": user_id, "full_name": full_name, "email": email}
-            })
-
-        # Login (Auto-Creates/Syncs User if Serverless Container was reset)
-        elif "login" in path:
-            email = body.get("email", "").lower().strip()
-            password = body.get("password", "")
-
-            cursor.execute("SELECT id, full_name, hashed_password FROM users WHERE email = ?", (email,))
-            user = cursor.fetchone()
-
-            if user:
-                if not verify_password(password, user[2]):
-                    conn.close()
-                    return self._send_json(401, {"detail": "Invalid email or password."})
-                user_id, full_name = user[0], user[1]
-            else:
-                # Auto-recovery for serverless cold start: create user record on first login match
                 hashed_pwd = get_password_hash(password)
-                full_name = email.split("@")[0].capitalize()
-                cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
-                conn.commit()
-                user_id = cursor.lastrowid
+                new_user = User(full_name=full_name, email=email, hashed_password=hashed_pwd)
+                db.add(new_user)
+                db.commit()
+                db.refresh(new_user)
 
-            conn.close()
-            token = create_access_token({"sub": str(user_id), "email": email})
-            return self._send_json(200, {
-                "access_token": token,
-                "token_type": "bearer",
-                "user": {"id": user_id, "full_name": full_name, "email": email}
-            })
+                token = create_access_token({"sub": str(new_user.id), "email": new_user.email})
+                return self._send_json(201, {
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "user": {"id": new_user.id, "full_name": new_user.full_name, "email": new_user.email}
+                })
 
-        else:
-            conn.close()
-            return self._send_json(200, {"status": "success", "data": body})
+            # Login
+            elif "login" in path:
+                email = body.get("email", "").lower().strip()
+                password = body.get("password", "")
+
+                user = db.query(User).filter(User.email == email).first()
+                if not user or not verify_password(password, user.hashed_password):
+                    return self._send_json(401, {"detail": "Invalid email or password."})
+
+                token = create_access_token({"sub": str(user.id), "email": user.email})
+                return self._send_json(200, {
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "user": {"id": user.id, "full_name": user.full_name, "email": user.email}
+                })
+
+            else:
+                return self._send_json(200, {"status": "success", "data": body})
+
+        except Exception as err:
+            return self._send_json(500, {"detail": str(err)})
+        finally:
+            db.close()
 
     def do_PUT(self):
         return self._send_json(200, {"status": "updated"})
