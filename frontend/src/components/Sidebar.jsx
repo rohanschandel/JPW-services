@@ -15,7 +15,7 @@ import {
   Moon,
   Briefcase
 } from 'lucide-react';
-import './Sidebar.css';
+import './sidebar.css';
 
 export default function Sidebar({ isOpen }) {
   const navigate = useNavigate();
