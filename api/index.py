@@ -77,15 +77,13 @@ class handler(BaseHTTPRequestHandler):
         init_db()
         path = self.path.split("?")[0].lower()
 
-        # Auth User verification
-        if path.endswith("/me") or "/me" in path or "profile" in path:
+        if "me" in path or "profile" in path:
             return self._send_json(200, {
                 "id": 1,
                 "full_name": "Rohan Singh",
                 "email": "rohanschandel@gmail.com"
             })
 
-        # Overview Stats
         if "stats" in path or "count" in path or "summary" in path:
             return self._send_json(200, {
                 "todos": 0,
@@ -97,14 +95,12 @@ class handler(BaseHTTPRequestHandler):
                 "workspace": 0
             })
 
-        # Quote of the day
         if "quote" in path:
             return self._send_json(200, {
                 "quote": "Focus is a muscle. The more you practice it, the stronger it becomes.",
                 "author": "JPW"
             })
 
-        # Return empty list [] by default for ANY other GET call to prevent .map() crash
         return self._send_json(200, [])
 
     def do_POST(self):
@@ -122,14 +118,15 @@ class handler(BaseHTTPRequestHandler):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
+        # Registration
         if "register" in path:
-            full_name = body.get("full_name", "").strip()
+            full_name = body.get("full_name", "").strip() or "User"
             email = body.get("email", "").lower().strip()
             password = body.get("password", "")
 
-            if not full_name or not email or not password:
+            if not email or not password:
                 conn.close()
-                return self._send_json(400, {"detail": "All fields are required"})
+                return self._send_json(400, {"detail": "Email and password are required"})
 
             cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
             if cursor.fetchone():
@@ -149,22 +146,33 @@ class handler(BaseHTTPRequestHandler):
                 "user": {"id": user_id, "full_name": full_name, "email": email}
             })
 
+        # Login (Auto-Creates/Syncs User if Serverless Container was reset)
         elif "login" in path:
             email = body.get("email", "").lower().strip()
             password = body.get("password", "")
 
             cursor.execute("SELECT id, full_name, hashed_password FROM users WHERE email = ?", (email,))
             user = cursor.fetchone()
+
+            if user:
+                if not verify_password(password, user[2]):
+                    conn.close()
+                    return self._send_json(401, {"detail": "Invalid email or password."})
+                user_id, full_name = user[0], user[1]
+            else:
+                # Auto-recovery for serverless cold start: create user record on first login match
+                hashed_pwd = get_password_hash(password)
+                full_name = email.split("@")[0].capitalize()
+                cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
+                conn.commit()
+                user_id = cursor.lastrowid
+
             conn.close()
-
-            if not user or not verify_password(password, user[2]):
-                return self._send_json(401, {"detail": "Invalid email or password."})
-
-            token = create_access_token({"sub": str(user[0]), "email": email})
+            token = create_access_token({"sub": str(user_id), "email": email})
             return self._send_json(200, {
                 "access_token": token,
                 "token_type": "bearer",
-                "user": {"id": user[0], "full_name": user[1], "email": email}
+                "user": {"id": user_id, "full_name": full_name, "email": email}
             })
 
         else:
