@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import API from '../services/api';
-import {
-  FolderGit2,
-  Plus,
-  ExternalLink,
-  Github,
-  Trash2,
-  Globe
+import { 
+  FolderGit2, 
+  Plus, 
+  ExternalLink, 
+  Github, 
+  Trash2, 
+  Globe 
 } from 'lucide-react';
 import './Projects.css';
 
@@ -176,9 +176,7 @@ export default function Projects() {
             projects.map((project) => (
               <div key={project.id} className="project-card">
                 <div className="project-card-top">
-                  <h3 className="project-title" title={project.name || project.title || project.project_title}>
-                    {project.name || project.title || project.project_title || "Untitled Project"}
-                  </h3>
+                  <h3 className="project-title" title={project.name}>{project.name}</h3>
                   <span className={`status-pill ${getStatusBadgeClass(project.status)}`}>
                     {project.status}
                   </span>

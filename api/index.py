@@ -12,107 +12,110 @@ DB_PATH = "/tmp/jpw_services.db"
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretjwtkey_jpw_services_2026_secure")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # 1. Users Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            hashed_password TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # 1. Users Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                full_name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                hashed_password TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 2. Todos / Tasks Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS todos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER DEFAULT 1,
-            title TEXT NOT NULL,
-            completed BOOLEAN DEFAULT 0,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        # 2. Todos / Tasks Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS todos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                title TEXT NOT NULL,
+                completed BOOLEAN DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 3. Bookmarks / Custom Portals Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS bookmarks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER DEFAULT 1,
-            title TEXT NOT NULL,
-            url TEXT NOT NULL,
-            category TEXT DEFAULT 'General & IT',
-            description TEXT DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        # 3. Bookmarks / Custom Portals Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                title TEXT NOT NULL,
+                url TEXT NOT NULL,
+                category TEXT DEFAULT 'General & IT',
+                description TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 4. HR Contacts Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS hr_contacts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER DEFAULT 1,
-            name TEXT NOT NULL,
-            company TEXT NOT NULL,
-            role TEXT DEFAULT 'Recruiter',
-            email TEXT DEFAULT '',
-            phone TEXT DEFAULT '',
-            linkedin TEXT DEFAULT '',
-            status TEXT DEFAULT 'Contacted',
-            notes TEXT DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        # 4. HR Contacts Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS hr_contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                name TEXT NOT NULL,
+                company TEXT NOT NULL,
+                role TEXT DEFAULT 'Recruiter',
+                email TEXT DEFAULT '',
+                phone TEXT DEFAULT '',
+                linkedin TEXT DEFAULT '',
+                status TEXT DEFAULT 'Contacted',
+                notes TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 5. Projects Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER DEFAULT 1,
-            title TEXT NOT NULL,
-            project_title TEXT,
-            live_url TEXT NOT NULL,
-            github_url TEXT DEFAULT '',
-            status TEXT DEFAULT 'Live',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        # 5. Projects Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                title TEXT NOT NULL,
+                project_title TEXT,
+                live_url TEXT NOT NULL,
+                github_url TEXT DEFAULT '',
+                status TEXT DEFAULT 'Live',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 6. Assignments & Deadlines Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS assignments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER DEFAULT 1,
-            title TEXT NOT NULL,
-            subject TEXT DEFAULT '',
-            category TEXT DEFAULT 'Assignment / Homework',
-            deadline_date TEXT NOT NULL,
-            date TEXT,
-            status TEXT DEFAULT 'Active',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        # 6. Assignments & Deadlines Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                title TEXT NOT NULL,
+                subject TEXT DEFAULT '',
+                category TEXT DEFAULT 'Assignment / Homework',
+                deadline_date TEXT NOT NULL,
+                date TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 7. Exams Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS exams (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER DEFAULT 1,
-            title TEXT NOT NULL,
-            exam_name TEXT,
-            exact_date TEXT NOT NULL,
-            date TEXT,
-            status TEXT DEFAULT 'Upcoming',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
+        # 7. Exams Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS exams (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                title TEXT NOT NULL,
+                exam_name TEXT,
+                exact_date TEXT NOT NULL,
+                date TEXT,
+                status TEXT DEFAULT 'Upcoming',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"DB Init Error: {e}")
 
 init_db()
 
@@ -177,36 +180,45 @@ class handler(BaseHTTPRequestHandler):
                     "email": "rohan8688832@gmail.com"
                 })
 
-            # 2. Todos / Tasks (Image 1)
+            # 2. Daily Focus / Quote
+            elif "quote" in path or "daily-focus" in path:
+                return self._send_json(200, {
+                    "quote": "Focus is a muscle. The more you practice it, the stronger it becomes.",
+                    "author": "JPW Services"
+                })
+
+            # 3. Todos / Tasks
             elif "todo" in path or "task" in path:
                 cursor.execute("SELECT * FROM todos ORDER BY id DESC")
                 rows = [dict(row) for row in cursor.fetchall()]
                 return self._send_json(200, rows)
 
-            # 3. Bookmarks / Custom Portals (Image 2)
+            # 4. Bookmarks / Custom Portals
             elif "bookmark" in path or "portal" in path:
                 cursor.execute("SELECT * FROM bookmarks ORDER BY id DESC")
                 rows = [dict(row) for row in cursor.fetchall()]
                 return self._send_json(200, rows)
 
-            # 4. HR Contacts (Image 3)
+            # 5. HR Contacts
             elif "hr" in path:
                 cursor.execute("SELECT * FROM hr_contacts ORDER BY id DESC")
                 rows = [dict(row) for row in cursor.fetchall()]
                 return self._send_json(200, rows)
 
-            # 5. Projects (Image 4)
+            # 6. Projects
             elif "project" in path:
                 cursor.execute("SELECT * FROM projects ORDER BY id DESC")
                 rows = []
                 for row in cursor.fetchall():
                     d = dict(row)
-                    d["title"] = d.get("title") or d.get("project_title") or "Project"
-                    d["project_title"] = d["title"]
+                    val = d.get("title") or d.get("project_title") or "My Project"
+                    d["title"] = val
+                    d["project_title"] = val
+                    d["name"] = val
                     rows.append(d)
                 return self._send_json(200, rows)
 
-            # 6. Assignments / Deadlines (Image 5)
+            # 7. Assignments / Deadlines
             elif "assignment" in path or "deadline" in path:
                 cursor.execute("SELECT * FROM assignments ORDER BY id DESC")
                 rows = []
@@ -217,7 +229,7 @@ class handler(BaseHTTPRequestHandler):
                     rows.append(d)
                 return self._send_json(200, rows)
 
-            # 7. Exams
+            # 8. Exams
             elif "exam" in path:
                 cursor.execute("SELECT * FROM exams ORDER BY id DESC")
                 rows = []
@@ -228,8 +240,8 @@ class handler(BaseHTTPRequestHandler):
                     rows.append(d)
                 return self._send_json(200, rows)
 
-            # 8. Stats Counter
-            elif "stats" in path:
+            # 9. Stats Counter
+            elif any(k in path for k in ["stats", "summary", "count", "overview"]):
                 cursor.execute("SELECT count(*) FROM bookmarks")
                 b_count = cursor.fetchone()[0]
                 cursor.execute("SELECT count(*) FROM projects")
@@ -239,7 +251,11 @@ class handler(BaseHTTPRequestHandler):
                 return self._send_json(200, {
                     "saved_links": b_count,
                     "active_projects": p_count,
-                    "hr_contacts": h_count
+                    "hr_contacts": h_count,
+                    "todos": 0,
+                    "links": b_count,
+                    "exams": 0,
+                    "projects": p_count
                 })
 
             else:
@@ -300,7 +316,7 @@ class handler(BaseHTTPRequestHandler):
                 token = create_access_token({"sub": str(user_id), "email": email})
                 return self._send_json(200, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
 
-            # 1. Create Task / Todo (Image 1)
+            # 1. Create Task / Todo
             elif "todo" in path or "task" in path:
                 title = body.get("title") or body.get("task") or "New Task"
                 cursor.execute("INSERT INTO todos (title, completed, status) VALUES (?, 0, 'pending')", (title,))
@@ -308,7 +324,7 @@ class handler(BaseHTTPRequestHandler):
                 item_id = cursor.lastrowid
                 return self._send_json(201, {"id": item_id, "title": title, "completed": False, "status": "pending"})
 
-            # 2. Save Custom Bookmark / Job Portal (Image 2)
+            # 2. Save Custom Bookmark / Job Portal
             elif "bookmark" in path or "portal" in path:
                 title = body.get("title") or body.get("name") or body.get("portal_name") or "Portal"
                 url = body.get("url") or body.get("link") or body.get("portal_link") or "#"
@@ -319,7 +335,7 @@ class handler(BaseHTTPRequestHandler):
                 item_id = cursor.lastrowid
                 return self._send_json(201, {"id": item_id, "title": title, "url": url, "category": category, "description": description})
 
-            # 3. Save HR Contact (Image 3)
+            # 3. Save HR Contact
             elif "hr" in path:
                 name = body.get("name") or body.get("recruiter_name") or "HR Name"
                 company = body.get("company") or "Company"
@@ -333,17 +349,17 @@ class handler(BaseHTTPRequestHandler):
                 item_id = cursor.lastrowid
                 return self._send_json(201, {"id": item_id, "name": name, "company": company, "role": role, "email": email, "phone": phone, "linkedin": linkedin, "notes": notes})
 
-            # 4. Save Project (Image 4)
+            # 4. Save Project
             elif "project" in path:
-                title = body.get("title") or body.get("project_title") or "My Project"
+                title = body.get("title") or body.get("project_title") or body.get("name") or "My Project"
                 live_url = body.get("live_url") or body.get("url") or body.get("link") or "#"
                 github_url = body.get("github_url") or body.get("github") or ""
                 cursor.execute("INSERT INTO projects (title, project_title, live_url, github_url, status) VALUES (?, ?, ?, ?, 'Live')", (title, title, live_url, github_url))
                 conn.commit()
                 item_id = cursor.lastrowid
-                return self._send_json(201, {"id": item_id, "title": title, "project_title": title, "live_url": live_url, "github_url": github_url, "status": "Live"})
+                return self._send_json(201, {"id": item_id, "title": title, "project_title": title, "name": title, "live_url": live_url, "github_url": github_url, "status": "Live"})
 
-            # 5. Save Assignment / Deadline (Image 5)
+            # 5. Save Assignment / Deadline
             elif "assignment" in path or "deadline" in path:
                 title = body.get("title") or body.get("assignment_title") or "Assignment"
                 category = body.get("category") or body.get("type") or "Assignment / Homework"
