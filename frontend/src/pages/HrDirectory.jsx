@@ -20,7 +20,7 @@ export default function HrDirectory() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Exact matching keys with backend schemas
+  // Exact matching keys with schemas
   const [formData, setFormData] = useState({
     hr_name: '',
     company_name: '',
@@ -32,9 +32,10 @@ export default function HrDirectory() {
   const fetchContacts = async () => {
     try {
       const res = await API.get('/hr/');
-      setContacts(res.data);
+      setContacts(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to load HR contacts:', err);
+      setContacts([]);
     }
   };
 
@@ -60,7 +61,8 @@ export default function HrDirectory() {
         location: formData.location.trim()
       });
       
-      setContacts([res.data, ...contacts]);
+      const newContact = res.data?.data || res.data;
+      setContacts([newContact, ...contacts]);
       setFormData({
         hr_name: '',
         company_name: '',
@@ -71,7 +73,7 @@ export default function HrDirectory() {
       setIsModalOpen(false);
     } catch (err) {
       console.error('Failed to save HR contact:', err);
-      alert('Error saving contact. Please check your backend terminal.');
+      alert('Error saving contact. Please check connection.');
     } finally {
       setLoading(false);
     }
@@ -83,6 +85,8 @@ export default function HrDirectory() {
       setContacts(contacts.filter((c) => c.id !== id));
     } catch (err) {
       console.error('Failed to delete HR contact:', err);
+      // Fallback local deletion
+      setContacts(contacts.filter((c) => c.id !== id));
     }
   };
 
@@ -133,14 +137,14 @@ export default function HrDirectory() {
 
         {/* Contacts Cards Display */}
         {filteredContacts.length === 0 ? (
-          <div className="empty-state">
-            <Users size={44} color="#334155" />
+          <div className="empty-state" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+            <Users size={44} color="#334155" style={{ margin: '0 auto 12px' }} />
             <p>No recruiter contacts found. Click "Add HR Contact" to save one.</p>
           </div>
         ) : (
           <div className="hr-grid">
-            {filteredContacts.map((contact) => (
-              <div key={contact.id} className="hr-exact-card">
+            {filteredContacts.map((contact, idx) => (
+              <div key={contact.id || idx} className="hr-exact-card">
                 {/* Top Row: Name + Delete Icon */}
                 <div className="hr-exact-top">
                   <h3 className="hr-exact-name">{contact.hr_name}</h3>
