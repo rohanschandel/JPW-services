@@ -6,91 +6,75 @@ import base64
 import hmac
 import time
 import os
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-# Auto-detect Environment: Use /tmp on Vercel/Cloud, local directory on PC
-if os.getenv("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-    DB_PATH = "/tmp/jpw_services.db"
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DB_PATH = os.path.join(BASE_DIR, "jpw_services.db")
-
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_e5SG0OLkNUQz@ep-rough-lake-ayu4belb.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretjwtkey_jpw_services_2026_secure")
+
+def get_db():
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    conn.autocommit = True
+    return conn
 
 def init_db():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db()
         cursor = conn.cursor()
         
-        # 1. Users Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 full_name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 hashed_password TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            );
 
-        # 2. Todos / Tasks Table
-        cursor.execute("""
             CREATE TABLE IF NOT EXISTS todos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
+                id SERIAL PRIMARY KEY,
+                user_id INT DEFAULT 1,
                 title TEXT NOT NULL,
-                completed BOOLEAN DEFAULT 0,
+                completed BOOLEAN DEFAULT FALSE,
                 status TEXT DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            );
 
-        # 3. Bookmarks / Custom Portals Table
-        cursor.execute("""
             CREATE TABLE IF NOT EXISTS bookmarks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
+                id SERIAL PRIMARY KEY,
+                user_id INT DEFAULT 1,
                 title TEXT NOT NULL,
                 url TEXT NOT NULL,
                 category TEXT DEFAULT 'General & IT',
                 description TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            );
 
-        # 4. HR Contacts Table
-        cursor.execute("""
             CREATE TABLE IF NOT EXISTS hr_contacts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
+                id SERIAL PRIMARY KEY,
+                user_id INT DEFAULT 1,
                 hr_name TEXT NOT NULL,
                 company_name TEXT NOT NULL,
                 hr_number TEXT DEFAULT '',
                 email_id TEXT DEFAULT '',
                 location TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            );
 
-        # 5. Projects Table
-        cursor.execute("""
             CREATE TABLE IF NOT EXISTS projects (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
+                id SERIAL PRIMARY KEY,
+                user_id INT DEFAULT 1,
                 title TEXT NOT NULL,
                 project_title TEXT,
                 live_url TEXT NOT NULL,
                 github_url TEXT DEFAULT '',
                 status TEXT DEFAULT 'Live',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            );
 
-        # 6. Assignments & Deadlines Table
-        cursor.execute("""
             CREATE TABLE IF NOT EXISTS assignments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
+                id SERIAL PRIMARY KEY,
+                user_id INT DEFAULT 1,
                 title TEXT NOT NULL,
                 subject TEXT DEFAULT '',
                 category TEXT DEFAULT 'Assignment / Homework',
@@ -98,27 +82,22 @@ def init_db():
                 date TEXT,
                 status TEXT DEFAULT 'Active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            );
 
-        # 7. Exams Table
-        cursor.execute("""
             CREATE TABLE IF NOT EXISTS exams (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
+                id SERIAL PRIMARY KEY,
+                user_id INT DEFAULT 1,
                 title TEXT NOT NULL,
                 exam_name TEXT,
                 exact_date TEXT NOT NULL,
                 date TEXT,
                 status TEXT DEFAULT 'Upcoming',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
+            );
         """)
-        
-        conn.commit()
         conn.close()
     except Exception as e:
-        print(f"DB Init Error: {e}")
+        print(f"Neon Init Error: {e}")
 
 init_db()
 
@@ -141,16 +120,13 @@ def b64_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')
 
 def create_access_token(data: dict) -> str:
-    header = {"alg": "HS256", "typ": "JWT"}
+    header = {"alg": "HS256", "typ": "jwt"}
     payload = data.copy()
-    payload["exp"] = int(time.time()) + (7 * 24 * 60 * 60)
-    
+    payload["exp"] = int(time.time()) + (30 * 24 * 60 * 60)
     h_b64 = b64_encode(json.dumps(header).encode('utf-8'))
     p_b64 = b64_encode(json.dumps(payload).encode('utf-8'))
-    
     sig = hmac.new(SECRET_KEY.encode('utf-8'), f"{h_b64}.{p_b64}".encode('utf-8'), hashlib.sha256).digest()
-    sig_b64 = b64_encode(sig)
-    return f"{h_b64}.{p_b64}.{sig_b64}"
+    return f"{h_b64}.{p_b64}.{b64_encode(sig)}"
 
 class handler(BaseHTTPRequestHandler):
     def _send_json(self, status_code: int, data: any):
@@ -160,7 +136,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
+        self.wfile.write(json.dumps(data, default=str).encode('utf-8'))
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -172,90 +148,74 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         init_db()
         path = self.path.split("?")[0].lower().rstrip("/")
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+
+        if path.endswith("/me") or "/auth/me" in path:
+            return self._send_json(200, {"id": 1, "full_name": "Rohan Singh", "email": "rohan8688832@gmail.com"})
+
+        elif "quote" in path or "daily-focus" in path:
+            return self._send_json(200, {"quote": "Focus is a muscle. The more you practice it, the stronger it becomes.", "author": "JPW Services"})
 
         try:
-            if path.endswith("/me") or "/auth/me" in path:
-                return self._send_json(200, {
-                    "id": 1,
-                    "full_name": "Rohan Singh",
-                    "email": "rohan8688832@gmail.com"
-                })
+            conn = get_db()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-            elif "quote" in path or "daily-focus" in path:
-                return self._send_json(200, {
-                    "quote": "Focus is a muscle. The more you practice it, the stronger it becomes.",
-                    "author": "JPW Services"
-                })
-
-            elif "todo" in path or "task" in path:
+            if "todo" in path or "task" in path:
                 cursor.execute("SELECT * FROM todos ORDER BY id DESC")
-                return self._send_json(200, [dict(row) for row in cursor.fetchall()])
+                return self._send_json(200, cursor.fetchall())
 
             elif "bookmark" in path or "portal" in path:
                 cursor.execute("SELECT * FROM bookmarks ORDER BY id DESC")
-                return self._send_json(200, [dict(row) for row in cursor.fetchall()])
+                return self._send_json(200, cursor.fetchall())
 
             elif "hr" in path:
                 cursor.execute("SELECT * FROM hr_contacts ORDER BY id DESC")
-                return self._send_json(200, [dict(row) for row in cursor.fetchall()])
+                return self._send_json(200, cursor.fetchall())
 
             elif "project" in path:
                 cursor.execute("SELECT * FROM projects ORDER BY id DESC")
-                rows = []
-                for row in cursor.fetchall():
-                    d = dict(row)
-                    val = d.get("title") or d.get("project_title") or "Project"
-                    d["title"] = val
-                    d["project_title"] = val
-                    d["name"] = val
-                    rows.append(d)
+                rows = cursor.fetchall()
+                for r in rows:
+                    val = r.get("title") or r.get("project_title") or "Project"
+                    r["title"] = val
+                    r["project_title"] = val
+                    r["name"] = val
                 return self._send_json(200, rows)
 
             elif "assignment" in path or "deadline" in path:
                 cursor.execute("SELECT * FROM assignments ORDER BY id DESC")
-                rows = []
-                for row in cursor.fetchall():
-                    d = dict(row)
-                    d["date"] = d.get("deadline_date") or d.get("date") or "2026-09-01"
-                    d["deadline_date"] = d["date"]
-                    rows.append(d)
+                rows = cursor.fetchall()
+                for r in rows:
+                    val = r.get("deadline_date") or r.get("date") or "2026-09-01"
+                    r["deadline_date"] = val
+                    r["date"] = val
                 return self._send_json(200, rows)
 
             elif "exam" in path:
                 cursor.execute("SELECT * FROM exams ORDER BY id DESC")
-                rows = []
-                for row in cursor.fetchall():
-                    d = dict(row)
-                    d["date"] = d.get("exact_date") or d.get("date") or "2026-09-01"
-                    d["exact_date"] = d["date"]
-                    rows.append(d)
+                rows = cursor.fetchall()
+                for r in rows:
+                    val = r.get("exact_date") or r.get("date") or "2026-09-01"
+                    r["exact_date"] = val
+                    r["date"] = val
                 return self._send_json(200, rows)
 
             elif any(k in path for k in ["stats", "summary", "count", "overview"]):
-                cursor.execute("SELECT count(*) FROM bookmarks")
-                b_count = cursor.fetchone()[0]
-                cursor.execute("SELECT count(*) FROM projects")
-                p_count = cursor.fetchone()[0]
-                cursor.execute("SELECT count(*) FROM hr_contacts")
-                h_count = cursor.fetchone()[0]
-                return self._send_json(200, {
-                    "saved_links": b_count,
-                    "active_projects": p_count,
-                    "hr_contacts": h_count,
-                    "todos": 0,
-                    "links": b_count,
-                    "exams": 0,
-                    "projects": p_count
-                })
+                cursor.execute("SELECT COUNT(*) as count FROM bookmarks")
+                b_cnt = cursor.fetchone()['count']
+                cursor.execute("SELECT COUNT(*) as count FROM projects")
+                p_cnt = cursor.fetchone()['count']
+                cursor.execute("SELECT COUNT(*) as count FROM hr_contacts")
+                h_cnt = cursor.fetchone()['count']
+                return self._send_json(200, {"saved_links": b_cnt, "active_projects": p_cnt, "hr_contacts": h_cnt})
 
             else:
                 return self._send_json(200, [])
 
+        except Exception as e:
+            return self._send_json(500, {"error": str(e)})
         finally:
-            conn.close()
+            if 'conn' in locals() and conn:
+                conn.close()
 
     def do_POST(self):
         init_db()
@@ -268,85 +228,62 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
         try:
-            # 1. Register User
+            conn = get_db()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
             if "register" in path:
                 full_name = body.get("full_name", "").strip() or "User"
                 email = body.get("email", "").lower().strip()
                 password = str(body.get("password", ""))
 
-                cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
+                cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
                 if cursor.fetchone():
                     return self._send_json(400, {"detail": "Account already exists."})
 
                 hashed_pwd = get_password_hash(password)
-                cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
-                conn.commit()
-                user_id = cursor.lastrowid
+                cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (%s, %s, %s) RETURNING id", (full_name, email, hashed_pwd))
+                user_id = cursor.fetchone()['id']
                 token = create_access_token({"sub": str(user_id), "email": email})
-                return self._send_json(201, {
-                    "access_token": token,
-                    "token": token,
-                    "user": {"id": user_id, "full_name": full_name, "email": email}
-                })
+                return self._send_json(201, {"access_token": token, "token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
 
-            # 2. Login User
             elif "login" in path:
                 email = body.get("email", "").lower().strip()
                 password = str(body.get("password", ""))
 
-                cursor.execute("SELECT id, full_name, hashed_password FROM users WHERE email = ?", (email,))
+                cursor.execute("SELECT id, full_name, hashed_password FROM users WHERE email = %s", (email,))
                 user = cursor.fetchone()
 
                 if user:
-                    user_id = user[0]
-                    full_name = user[1]
-                    hashed_pwd = user[2]
-                    
+                    user_id, full_name, hashed_pwd = user['id'], user['full_name'], user['hashed_password']
                     if verify_password(password, hashed_pwd):
                         token = create_access_token({"sub": str(user_id), "email": email})
-                        return self._send_json(200, {
-                            "access_token": token,
-                            "token": token,
-                            "user": {"id": user_id, "full_name": full_name, "email": email}
-                        })
+                        return self._send_json(200, {"access_token": token, "token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
                     else:
                         return self._send_json(401, {"detail": "Invalid credentials"})
                 else:
-                    # Auto-register on first sign-in
                     hashed_pwd = get_password_hash(password)
                     full_name = email.split("@")[0].capitalize()
-                    cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
-                    conn.commit()
-                    user_id = cursor.lastrowid
+                    cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (%s, %s, %s) RETURNING id", (full_name, email, hashed_pwd))
+                    user_id = cursor.fetchone()['id']
                     token = create_access_token({"sub": str(user_id), "email": email})
-                    return self._send_json(200, {
-                        "access_token": token,
-                        "token": token,
-                        "user": {"id": user_id, "full_name": full_name, "email": email}
-                    })
+                    return self._send_json(200, {"access_token": token, "token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
 
-            # 3. Create Task / Todo
             elif "todo" in path or "task" in path:
                 title = body.get("title") or body.get("task") or "New Task"
-                cursor.execute("INSERT INTO todos (title, completed, status) VALUES (?, 0, 'pending')", (title,))
-                conn.commit()
-                return self._send_json(201, {"id": cursor.lastrowid, "title": title, "completed": False, "status": "pending"})
+                cursor.execute("INSERT INTO todos (title, completed, status) VALUES (%s, FALSE, 'pending') RETURNING id", (title,))
+                item_id = cursor.fetchone()['id']
+                return self._send_json(201, {"id": item_id, "title": title, "completed": False, "status": "pending"})
 
-            # 4. Save Bookmark / Portal
             elif "bookmark" in path or "portal" in path:
-                title = body.get("title") or body.get("name") or body.get("portal_name") or "Portal"
-                url = body.get("url") or body.get("link") or body.get("portal_link") or "#"
+                title = body.get("title") or body.get("name") or "Portal"
+                url = body.get("url") or body.get("link") or "#"
                 category = body.get("category") or "General & IT"
                 description = body.get("description") or "Custom portal"
-                cursor.execute("INSERT INTO bookmarks (title, url, category, description) VALUES (?, ?, ?, ?)", (title, url, category, description))
-                conn.commit()
-                return self._send_json(201, {"id": cursor.lastrowid, "title": title, "url": url, "category": category, "description": description})
+                cursor.execute("INSERT INTO bookmarks (title, url, category, description) VALUES (%s, %s, %s, %s) RETURNING id", (title, url, category, description))
+                item_id = cursor.fetchone()['id']
+                return self._send_json(201, {"id": item_id, "title": title, "url": url, "category": category, "description": description})
 
-            # 5. Save HR Contact
             elif "hr" in path:
                 hr_name = body.get("hr_name") or body.get("name") or "HR Name"
                 company_name = body.get("company_name") or body.get("company") or "Company"
@@ -354,66 +291,44 @@ class handler(BaseHTTPRequestHandler):
                 email_id = body.get("email_id") or body.get("email") or ""
                 location = body.get("location") or ""
                 cursor.execute(
-                    "INSERT INTO hr_contacts (hr_name, company_name, hr_number, email_id, location) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO hr_contacts (hr_name, company_name, hr_number, email_id, location) VALUES (%s, %s, %s, %s, %s) RETURNING id",
                     (hr_name, company_name, hr_number, email_id, location)
                 )
-                conn.commit()
-                return self._send_json(201, {
-                    "id": cursor.lastrowid,
-                    "hr_name": hr_name,
-                    "company_name": company_name,
-                    "hr_number": hr_number,
-                    "email_id": email_id,
-                    "location": location
-                })
+                item_id = cursor.fetchone()['id']
+                return self._send_json(201, {"id": item_id, "hr_name": hr_name, "company_name": company_name, "hr_number": hr_number, "email_id": email_id, "location": location})
 
-            # 6. Save Project
             elif "project" in path:
-                title = body.get("title") or body.get("project_title") or body.get("name") or "Project"
-                live_url = body.get("live_url") or body.get("url") or body.get("link") or "#"
+                title = body.get("title") or body.get("project_title") or "Project"
+                live_url = body.get("live_url") or body.get("url") or "#"
                 github_url = body.get("github_url") or body.get("github") or ""
                 cursor.execute(
-                    "INSERT INTO projects (title, project_title, live_url, github_url, status) VALUES (?, ?, ?, ?, 'Live')",
+                    "INSERT INTO projects (title, project_title, live_url, github_url, status) VALUES (%s, %s, %s, %s, 'Live') RETURNING id",
                     (title, title, live_url, github_url)
                 )
-                conn.commit()
-                return self._send_json(201, {
-                    "id": cursor.lastrowid,
-                    "title": title,
-                    "project_title": title,
-                    "name": title,
-                    "live_url": live_url,
-                    "github_url": github_url,
-                    "status": "Live"
-                })
+                item_id = cursor.fetchone()['id']
+                return self._send_json(201, {"id": item_id, "title": title, "project_title": title, "name": title, "live_url": live_url, "github_url": github_url, "status": "Live"})
 
-            # 7. Save Assignment / Deadline
             elif "assignment" in path or "deadline" in path:
                 title = body.get("title") or body.get("assignment_title") or "Assignment"
                 category = body.get("category") or "Assignment / Homework"
                 subject = body.get("subject") or ""
                 deadline_date = body.get("deadline_date") or body.get("date") or time.strftime("%Y-%m-%d")
                 cursor.execute(
-                    "INSERT INTO assignments (title, subject, category, deadline_date, date) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO assignments (title, subject, category, deadline_date, date) VALUES (%s, %s, %s, %s, %s) RETURNING id",
                     (title, subject, category, deadline_date, deadline_date)
                 )
-                conn.commit()
-                return self._send_json(201, {
-                    "id": cursor.lastrowid,
-                    "title": title,
-                    "subject": subject,
-                    "category": category,
-                    "deadline_date": deadline_date,
-                    "date": deadline_date
-                })
+                item_id = cursor.fetchone()['id']
+                return self._send_json(201, {"id": item_id, "title": title, "subject": subject, "category": category, "deadline_date": deadline_date, "date": deadline_date})
 
-            # 8. Save Exam
             elif "exam" in path:
                 title = body.get("title") or body.get("exam_name") or "Exam"
                 exact_date = body.get("exact_date") or body.get("date") or time.strftime("%Y-%m-%d")
-                cursor.execute("INSERT INTO exams (title, exam_name, exact_date, date) VALUES (?, ?, ?, ?)", (title, title, exact_date, exact_date))
-                conn.commit()
-                return self._send_json(201, {"id": cursor.lastrowid, "title": title, "exam_name": title, "exact_date": exact_date, "date": exact_date})
+                cursor.execute(
+                    "INSERT INTO exams (title, exam_name, exact_date, date) VALUES (%s, %s, %s, %s) RETURNING id",
+                    (title, title, exact_date, exact_date)
+                )
+                item_id = cursor.fetchone()['id']
+                return self._send_json(201, {"id": item_id, "title": title, "exam_name": title, "exact_date": exact_date, "date": exact_date})
 
             else:
                 return self._send_json(200, body)
@@ -421,32 +336,36 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send_json(500, {"detail": str(e)})
         finally:
-            conn.close()
+            if 'conn' in locals() and conn:
+                conn.close()
 
     def do_DELETE(self):
-        init_db()
         path = self.path.split("?")[0].lower().rstrip("/")
         item_id = path.split("/")[-1]
-        
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+
         try:
+            conn = get_db()
+            cursor = conn.cursor()
+
             if "todo" in path or "task" in path:
-                cursor.execute("DELETE FROM todos WHERE id = ?", (item_id,))
+                cursor.execute("DELETE FROM todos WHERE id = %s", (item_id,))
             elif "bookmark" in path or "portal" in path:
-                cursor.execute("DELETE FROM bookmarks WHERE id = ?", (item_id,))
+                cursor.execute("DELETE FROM bookmarks WHERE id = %s", (item_id,))
             elif "hr" in path:
-                cursor.execute("DELETE FROM hr_contacts WHERE id = ?", (item_id,))
+                cursor.execute("DELETE FROM hr_contacts WHERE id = %s", (item_id,))
             elif "project" in path:
-                cursor.execute("DELETE FROM projects WHERE id = ?", (item_id,))
+                cursor.execute("DELETE FROM projects WHERE id = %s", (item_id,))
             elif "assignment" in path or "deadline" in path:
-                cursor.execute("DELETE FROM assignments WHERE id = ?", (item_id,))
+                cursor.execute("DELETE FROM assignments WHERE id = %s", (item_id,))
             elif "exam" in path:
-                cursor.execute("DELETE FROM exams WHERE id = ?", (item_id,))
-            conn.commit()
+                cursor.execute("DELETE FROM exams WHERE id = %s", (item_id,))
+
             return self._send_json(200, {"status": "deleted", "id": item_id})
+        except Exception as e:
+            return self._send_json(500, {"detail": str(e)})
         finally:
-            conn.close()
+            if 'conn' in locals() and conn:
+                conn.close()
 
     def do_PUT(self):
         return self._send_json(200, {"status": "updated"})
@@ -454,9 +373,5 @@ class handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     server_address = ("127.0.0.1", 8000)
     httpd = HTTPServer(server_address, handler)
-    print("🚀 Local SQLite Backend running on http://127.0.0.1:8000")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n🛑 Backend server stopped.")
-        httpd.server_close()
+    print("🚀 Cloud-connected backend server running on http://127.0.0.1:8000")
+    httpd.serve_forever()
