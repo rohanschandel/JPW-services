@@ -18,7 +18,7 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-// Safe Cache Helpers (Protected from wiping)
+// Cache Helpers for Safe Offline Navigation
 export const getCachedData = (key, fallback = []) => {
   try {
     const raw = localStorage.getItem(key);
@@ -37,5 +37,9 @@ export const saveCacheData = (key, data) => {
     }
   } catch (e) {}
 };
+
+// Auth Functions required by AuthPage.jsx
+export const registerUser = (data) => API.post('/auth/register', data);
+export const loginUser = (data) => API.post('/auth/login', data);
 
 export default API;
