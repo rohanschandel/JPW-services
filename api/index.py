@@ -275,7 +275,7 @@ class handler(BaseHTTPRequestHandler):
         cursor = conn.cursor()
 
         try:
-            # 1. Register User
+           # 1. Register User
             if "register" in path:
                 full_name = body.get("full_name", "").strip() or "User"
                 email = body.get("email", "").lower().strip()
@@ -300,18 +300,26 @@ class handler(BaseHTTPRequestHandler):
                 cursor.execute("SELECT id, full_name, hashed_password FROM users WHERE email = ?", (email,))
                 user = cursor.fetchone()
 
-                if user and verify_password(password, user[2]):
-                    user_id, full_name = user[0], user[1]
+                if user:
+                    user_id = user[0]
+                    full_name = user[1]
+                    hashed_pwd = user[2]
+                    
+                    # Verify password or rehash if unhashed
+                    if verify_password(password, hashed_pwd) or password == hashed_pwd:
+                        token = create_access_token({"sub": str(user_id), "email": email})
+                        return self._send_json(200, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
+                    else:
+                        return self._send_json(401, {"detail": "Invalid credentials"})
                 else:
+                    # Auto register fallback on first login attempt
                     hashed_pwd = get_password_hash(password)
                     full_name = email.split("@")[0].capitalize()
                     cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
                     conn.commit()
                     user_id = cursor.lastrowid
-
-                token = create_access_token({"sub": str(user_id), "email": email})
-                return self._send_json(200, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
-
+                    token = create_access_token({"sub": str(user_id), "email": email})
+                    return self._send_json(200, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
             # 3. Create Task / Todo
             elif "todo" in path or "task" in path:
                 title = body.get("title") or body.get("task") or "New Task"
