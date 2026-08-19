@@ -33,34 +33,39 @@ export default function TodosPage() {
     fetchTodos();
   }, []);
 
-  const handleAddTodo = async (e) => {
+const handleAddTodo = async (e) => {
     e.preventDefault();
     if (!taskInput.trim()) return;
 
     setLoading(true);
+    const taskName = taskInput.trim();
     const tempTodo = {
       id: Date.now(),
-      task: taskInput.trim(),
-      title: taskInput.trim(),
+      task: taskName,
+      title: taskName,
       is_completed: false,
       completed: false
     };
 
-    // Instant UI + Cache Update
-    const updated = [tempTodo, ...todos];
-    setTodos(updated);
-    saveCacheData('jpw_cache_todos', updated);
+    // Functional State Update: Prevents wiping
+    setTodos((prev) => {
+      const next = [tempTodo, ...prev];
+      saveCacheData('jpw_cache_todos', next);
+      return next;
+    });
     setTaskInput('');
 
     try {
-      const res = await API.post('/todos/', { task: tempTodo.task, title: tempTodo.task });
+      const res = await API.post('/todos', { task: taskName, title: taskName });
       if (res.data && res.data.id) {
-        const finalized = todos.map(t => t.id === tempTodo.id ? { ...res.data, task: res.data.task || res.data.title, is_completed: false } : t);
-        setTodos(finalized);
-        saveCacheData('jpw_cache_todos', finalized);
+        setTodos((prev) => {
+          const next = prev.map(t => t.id === tempTodo.id ? { ...res.data, task: res.data.task || res.data.title, is_completed: false } : t);
+          saveCacheData('jpw_cache_todos', next);
+          return next;
+        });
       }
     } catch (err) {
-      console.warn('Offline task saved to local cache');
+      console.warn('Saved offline in local storage');
     } finally {
       setLoading(false);
     }

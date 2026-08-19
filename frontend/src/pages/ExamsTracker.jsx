@@ -65,7 +65,7 @@ export default function ExamsTracker() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAddItem = async (e) => {
+const handleAddItem = async (e) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.deadline_date) return;
 
@@ -78,10 +78,12 @@ export default function ExamsTracker() {
       date: formData.deadline_date
     };
 
-    // Instant UI + Cache Update
-    const updated = sortUpcomingDeadlines([tempItem, ...items]);
-    setItems(updated);
-    saveCacheData('jpw_cache_deadlines', updated);
+    // Functional State Update: Prevents wiping
+    setItems((prev) => {
+      const next = sortUpcomingDeadlines([tempItem, ...prev]);
+      saveCacheData('jpw_cache_deadlines', next);
+      return next;
+    });
 
     setFormData({
       type: 'Assignment',
@@ -91,14 +93,16 @@ export default function ExamsTracker() {
     });
 
     try {
-      const res = await API.post('/assignments/', tempItem);
+      const res = await API.post('/assignments', tempItem);
       if (res.data && res.data.id) {
-        const finalized = items.map(i => i.id === tempItem.id ? res.data : i);
-        setItems(sortUpcomingDeadlines(finalized));
-        saveCacheData('jpw_cache_deadlines', finalized);
+        setItems((prev) => {
+          const next = sortUpcomingDeadlines(prev.map(i => i.id === tempItem.id ? res.data : i));
+          saveCacheData('jpw_cache_deadlines', next);
+          return next;
+        });
       }
     } catch (err) {
-      console.error('Save to server queued in cache');
+      console.warn('Saved offline in local storage');
     } finally {
       setLoading(false);
     }

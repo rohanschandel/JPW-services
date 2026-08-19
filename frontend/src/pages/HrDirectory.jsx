@@ -45,11 +45,7 @@ export default function HrDirectory() {
     fetchContacts();
   }, []);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleCreateContact = async (e) => {
+const handleCreateContact = async (e) => {
     e.preventDefault();
     if (!formData.hr_name.trim() || !formData.company_name.trim()) return;
 
@@ -63,10 +59,12 @@ export default function HrDirectory() {
       location: formData.location.trim()
     };
 
-    // Instant UI + Cache Update
-    const updated = [tempContact, ...contacts];
-    setContacts(updated);
-    saveCacheData('jpw_cache_hr', updated);
+    // Functional State Update: Prevents wiping
+    setContacts((prev) => {
+      const next = [tempContact, ...prev];
+      saveCacheData('jpw_cache_hr', next);
+      return next;
+    });
 
     setFormData({
       hr_name: '',
@@ -78,15 +76,17 @@ export default function HrDirectory() {
     setIsModalOpen(false);
 
     try {
-      const res = await API.post('/hr/', tempContact);
-      const newContact = res.data?.data || res.data;
-      if (newContact && newContact.id) {
-        const finalized = contacts.map(c => c.id === tempContact.id ? newContact : c);
-        setContacts(finalized);
-        saveCacheData('jpw_cache_hr', finalized);
+      const res = await API.post('/hr', tempContact);
+      const serverItem = res.data?.data || res.data;
+      if (serverItem && serverItem.id) {
+        setContacts((prev) => {
+          const next = prev.map(c => c.id === tempContact.id ? serverItem : c);
+          saveCacheData('jpw_cache_hr', next);
+          return next;
+        });
       }
     } catch (err) {
-      console.warn('Offline mode: Contact saved to local cache');
+      console.warn('Saved offline in local storage');
     } finally {
       setLoading(false);
     }

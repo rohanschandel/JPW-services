@@ -47,7 +47,7 @@ export default function Projects() {
     }
   };
 
-  const handleCreateProject = async (e) => {
+const handleCreateProject = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.live_url.trim()) return;
 
@@ -62,10 +62,12 @@ export default function Projects() {
       status: formData.status
     };
 
-    // Instant UI + Cache Update
-    const updated = [tempProject, ...projects];
-    setProjects(updated);
-    saveCacheData('jpw_cache_projects', updated);
+    // Functional State Update: Prevents wiping
+    setProjects((prev) => {
+      const next = [tempProject, ...prev];
+      saveCacheData('jpw_cache_projects', next);
+      return next;
+    });
 
     setFormData({
       name: '',
@@ -75,14 +77,16 @@ export default function Projects() {
     });
 
     try {
-      const res = await API.post('/projects/', tempProject);
+      const res = await API.post('/projects', tempProject);
       if (res.data && res.data.id) {
-        const finalized = projects.map(p => p.id === tempProject.id ? res.data : p);
-        setProjects(finalized);
-        saveCacheData('jpw_cache_projects', finalized);
+        setProjects((prev) => {
+          const next = prev.map(p => p.id === tempProject.id ? res.data : p);
+          saveCacheData('jpw_cache_projects', next);
+          return next;
+        });
       }
     } catch (err) {
-      console.warn('Backend sync failed, saved locally');
+      console.warn('Saved offline in local storage');
     } finally {
       setLoading(false);
     }
