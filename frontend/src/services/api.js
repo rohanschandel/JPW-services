@@ -18,51 +18,13 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-// Cache map keys
-const CACHE_KEYS = {
-  hr: 'jpw_cache_hr',
-  project: 'jpw_cache_projects',
-  deadline: 'jpw_cache_deadlines',
-  assignment: 'jpw_cache_deadlines',
-  exam: 'jpw_cache_exams',
-  todo: 'jpw_cache_todos',
-  bookmark: 'jpw_cache_bookmarks',
-};
-
-const getCacheKey = (url) => {
-  for (const [key, val] of Object.entries(CACHE_KEYS)) {
-    if (url.toLowerCase().includes(key)) return val;
-  }
-  return null;
-};
-
-// Response interceptor with permanent offline fallback
-API.interceptors.response.use(
-  (response) => {
-    const url = response.config?.url || '';
-    const cacheKey = getCacheKey(url);
-    if (cacheKey && Array.isArray(response.data)) {
-      localStorage.setItem(cacheKey, JSON.stringify(response.data));
-    }
-    return response;
-  },
-  (error) => {
-    const url = error.config?.url || '';
-    const cacheKey = getCacheKey(url);
-    if (cacheKey) {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        return Promise.resolve({ data: JSON.parse(cached) });
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
+// Safe Cache Helpers (Protected from wiping)
 export const getCachedData = (key, fallback = []) => {
   try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : fallback;
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
   } catch (e) {
     return fallback;
   }
@@ -70,7 +32,9 @@ export const getCachedData = (key, fallback = []) => {
 
 export const saveCacheData = (key, data) => {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    if (Array.isArray(data)) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
   } catch (e) {}
 };
 

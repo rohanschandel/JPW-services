@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import API, { getCachedData, saveCacheData } from '../services/api';
-import { 
-  FolderGit2, 
-  Plus, 
-  Github, 
-  Trash2, 
-  Globe 
+import {
+  FolderGit2,
+  Plus,
+  Github,
+  Trash2,
+  Globe
 } from 'lucide-react';
 import './Projects.css';
 
@@ -24,13 +24,13 @@ export default function Projects() {
 
   const fetchProjects = async () => {
     try {
-      const res = await API.get('/projects/');
-      if (Array.isArray(res.data)) {
+      const res = await API.get('/projects');
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         setProjects(res.data);
         saveCacheData('jpw_cache_projects', res.data);
       }
     } catch (err) {
-      console.warn('Loaded projects from local cache');
+      console.warn('Backend sync failed, maintaining saved projects');
     }
   };
 

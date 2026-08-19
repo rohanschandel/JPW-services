@@ -46,14 +46,14 @@ export default function ExamsTracker() {
 
   const fetchItems = async () => {
     try {
-      const res = await API.get('/assignments/');
-      if (res.data && Array.isArray(res.data)) {
+      const res = await API.get('/assignments');
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         const sorted = sortUpcomingDeadlines(res.data);
         setItems(sorted);
         saveCacheData('jpw_cache_deadlines', sorted);
       }
     } catch (err) {
-      console.warn('Syncing from cache fallback');
+      console.warn('Backend sync failed, maintaining saved deadlines');
     }
   };
 

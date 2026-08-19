@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import API, { getCachedData, saveCacheData } from '../services/api';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Building2, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Trash2, 
-  X 
+import {
+  Users,
+  Plus,
+  Search,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  Trash2,
+  X
 } from 'lucide-react';
 import './HrDirectory.css';
 
@@ -31,13 +31,13 @@ export default function HrDirectory() {
 
   const fetchContacts = async () => {
     try {
-      const res = await API.get('/hr/');
-      if (Array.isArray(res.data)) {
+      const res = await API.get('/hr');
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         setContacts(res.data);
         saveCacheData('jpw_cache_hr', res.data);
       }
     } catch (err) {
-      console.warn('Using cached HR contacts');
+      console.warn('Backend sync failed, maintaining saved HR contacts');
     }
   };
 
@@ -158,9 +158,9 @@ export default function HrDirectory() {
               <div key={contact.id || idx} className="hr-exact-card">
                 <div className="hr-exact-top">
                   <h3 className="hr-exact-name">{contact.hr_name}</h3>
-                  <button 
-                    onClick={() => handleDeleteContact(contact.id)} 
-                    className="hr-exact-delete" 
+                  <button
+                    onClick={() => handleDeleteContact(contact.id)}
+                    className="hr-exact-delete"
                     title="Delete Contact"
                   >
                     <Trash2 size={16} />
@@ -271,9 +271,9 @@ export default function HrDirectory() {
                 </div>
 
                 <div className="modal-footer-btns">
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
                     onClick={() => setIsModalOpen(false)}
                   >
                     Cancel

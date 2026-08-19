@@ -12,10 +12,10 @@ export default function TodosPage() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(false);
 
-  const fetchTodos = async () => {
+ const fetchTodos = async () => {
     try {
-      const res = await API.get('/todos/');
-      if (Array.isArray(res.data)) {
+      const res = await API.get('/todos');
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         const normalized = res.data.map(t => ({
           ...t,
           task: t.task || t.title,
@@ -25,7 +25,7 @@ export default function TodosPage() {
         saveCacheData('jpw_cache_todos', normalized);
       }
     } catch (err) {
-      console.warn('Loaded todos from local cache');
+      console.warn('Backend sync failed, maintaining saved tasks');
     }
   };
 
