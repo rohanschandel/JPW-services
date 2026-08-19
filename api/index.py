@@ -1,4 +1,4 @@
-from http.server import BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import hashlib
 import secrets
@@ -8,7 +8,9 @@ import time
 import os
 import sqlite3
 
-DB_PATH = "/tmp/jpw_services.db"
+# Local storage path - saves permanently in the api directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "jpw_services.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretjwtkey_jpw_services_2026_secure")
 
 def init_db():
@@ -57,14 +59,11 @@ def init_db():
             CREATE TABLE IF NOT EXISTS hr_contacts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER DEFAULT 1,
-                name TEXT NOT NULL,
-                company TEXT NOT NULL,
-                role TEXT DEFAULT 'Recruiter',
-                email TEXT DEFAULT '',
-                phone TEXT DEFAULT '',
-                linkedin TEXT DEFAULT '',
-                status TEXT DEFAULT 'Contacted',
-                notes TEXT DEFAULT '',
+                hr_name TEXT NOT NULL,
+                company_name TEXT NOT NULL,
+                hr_number TEXT DEFAULT '',
+                email_id TEXT DEFAULT '',
+                location TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -190,20 +189,17 @@ class handler(BaseHTTPRequestHandler):
             # 3. Todos / Tasks
             elif "todo" in path or "task" in path:
                 cursor.execute("SELECT * FROM todos ORDER BY id DESC")
-                rows = [dict(row) for row in cursor.fetchall()]
-                return self._send_json(200, rows)
+                return self._send_json(200, [dict(row) for row in cursor.fetchall()])
 
             # 4. Bookmarks / Custom Portals
             elif "bookmark" in path or "portal" in path:
                 cursor.execute("SELECT * FROM bookmarks ORDER BY id DESC")
-                rows = [dict(row) for row in cursor.fetchall()]
-                return self._send_json(200, rows)
+                return self._send_json(200, [dict(row) for row in cursor.fetchall()])
 
             # 5. HR Contacts
             elif "hr" in path:
                 cursor.execute("SELECT * FROM hr_contacts ORDER BY id DESC")
-                rows = [dict(row) for row in cursor.fetchall()]
-                return self._send_json(200, rows)
+                return self._send_json(200, [dict(row) for row in cursor.fetchall()])
 
             # 6. Projects
             elif "project" in path:
@@ -211,7 +207,7 @@ class handler(BaseHTTPRequestHandler):
                 rows = []
                 for row in cursor.fetchall():
                     d = dict(row)
-                    val = d.get("title") or d.get("project_title") or "My Project"
+                    val = d.get("title") or d.get("project_title") or "Project"
                     d["title"] = val
                     d["project_title"] = val
                     d["name"] = val
@@ -240,7 +236,7 @@ class handler(BaseHTTPRequestHandler):
                     rows.append(d)
                 return self._send_json(200, rows)
 
-            # 9. Stats Counter
+            # 9. Stats Summary Counter
             elif any(k in path for k in ["stats", "summary", "count", "overview"]):
                 cursor.execute("SELECT count(*) FROM bookmarks")
                 b_count = cursor.fetchone()[0]
@@ -279,7 +275,7 @@ class handler(BaseHTTPRequestHandler):
         cursor = conn.cursor()
 
         try:
-            # Registration
+            # 1. Register User
             if "register" in path:
                 full_name = body.get("full_name", "").strip() or "User"
                 email = body.get("email", "").lower().strip()
@@ -296,7 +292,7 @@ class handler(BaseHTTPRequestHandler):
                 token = create_access_token({"sub": str(user_id), "email": email})
                 return self._send_json(201, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
 
-            # Login
+            # 2. Login User
             elif "login" in path:
                 email = body.get("email", "").lower().strip()
                 password = body.get("password", "")
@@ -316,7 +312,7 @@ class handler(BaseHTTPRequestHandler):
                 token = create_access_token({"sub": str(user_id), "email": email})
                 return self._send_json(200, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
 
-            # 1. Create Task / Todo
+            # 3. Create Task / Todo
             elif "todo" in path or "task" in path:
                 title = body.get("title") or body.get("task") or "New Task"
                 cursor.execute("INSERT INTO todos (title, completed, status) VALUES (?, 0, 'pending')", (title,))
@@ -324,7 +320,7 @@ class handler(BaseHTTPRequestHandler):
                 item_id = cursor.lastrowid
                 return self._send_json(201, {"id": item_id, "title": title, "completed": False, "status": "pending"})
 
-            # 2. Save Custom Bookmark / Job Portal
+            # 4. Save Bookmark / Portal
             elif "bookmark" in path or "portal" in path:
                 title = body.get("title") or body.get("name") or body.get("portal_name") or "Portal"
                 url = body.get("url") or body.get("link") or body.get("portal_link") or "#"
@@ -335,42 +331,71 @@ class handler(BaseHTTPRequestHandler):
                 item_id = cursor.lastrowid
                 return self._send_json(201, {"id": item_id, "title": title, "url": url, "category": category, "description": description})
 
-            # 3. Save HR Contact
+            # 5. Save HR Contact
             elif "hr" in path:
-                name = body.get("name") or body.get("recruiter_name") or "HR Name"
-                company = body.get("company") or "Company"
-                role = body.get("role") or "Recruiter"
-                email = body.get("email") or ""
-                phone = body.get("phone") or ""
-                linkedin = body.get("linkedin") or ""
-                notes = body.get("notes") or ""
-                cursor.execute("INSERT INTO hr_contacts (name, company, role, email, phone, linkedin, notes) VALUES (?, ?, ?, ?, ?, ?, ?)", (name, company, role, email, phone, linkedin, notes))
+                hr_name = body.get("hr_name") or body.get("name") or "HR Name"
+                company_name = body.get("company_name") or body.get("company") or "Company"
+                hr_number = body.get("hr_number") or body.get("phone") or ""
+                email_id = body.get("email_id") or body.get("email") or ""
+                location = body.get("location") or ""
+                cursor.execute(
+                    "INSERT INTO hr_contacts (hr_name, company_name, hr_number, email_id, location) VALUES (?, ?, ?, ?, ?)",
+                    (hr_name, company_name, hr_number, email_id, location)
+                )
                 conn.commit()
                 item_id = cursor.lastrowid
-                return self._send_json(201, {"id": item_id, "name": name, "company": company, "role": role, "email": email, "phone": phone, "linkedin": linkedin, "notes": notes})
+                return self._send_json(201, {
+                    "id": item_id,
+                    "hr_name": hr_name,
+                    "company_name": company_name,
+                    "hr_number": hr_number,
+                    "email_id": email_id,
+                    "location": location
+                })
 
-            # 4. Save Project
+            # 6. Save Project
             elif "project" in path:
-                title = body.get("title") or body.get("project_title") or body.get("name") or "My Project"
+                title = body.get("title") or body.get("project_title") or body.get("name") or "Project"
                 live_url = body.get("live_url") or body.get("url") or body.get("link") or "#"
                 github_url = body.get("github_url") or body.get("github") or ""
-                cursor.execute("INSERT INTO projects (title, project_title, live_url, github_url, status) VALUES (?, ?, ?, ?, 'Live')", (title, title, live_url, github_url))
+                cursor.execute(
+                    "INSERT INTO projects (title, project_title, live_url, github_url, status) VALUES (?, ?, ?, ?, 'Live')",
+                    (title, title, live_url, github_url)
+                )
                 conn.commit()
                 item_id = cursor.lastrowid
-                return self._send_json(201, {"id": item_id, "title": title, "project_title": title, "name": title, "live_url": live_url, "github_url": github_url, "status": "Live"})
+                return self._send_json(201, {
+                    "id": item_id,
+                    "title": title,
+                    "project_title": title,
+                    "name": title,
+                    "live_url": live_url,
+                    "github_url": github_url,
+                    "status": "Live"
+                })
 
-            # 5. Save Assignment / Deadline
+            # 7. Save Assignment / Deadline
             elif "assignment" in path or "deadline" in path:
                 title = body.get("title") or body.get("assignment_title") or "Assignment"
                 category = body.get("category") or body.get("type") or "Assignment / Homework"
                 subject = body.get("subject") or body.get("tech_stack") or ""
                 deadline_date = body.get("deadline_date") or body.get("exact_date") or body.get("date") or time.strftime("%Y-%m-%d")
-                cursor.execute("INSERT INTO assignments (title, subject, category, deadline_date, date) VALUES (?, ?, ?, ?, ?)", (title, subject, category, deadline_date, deadline_date))
+                cursor.execute(
+                    "INSERT INTO assignments (title, subject, category, deadline_date, date) VALUES (?, ?, ?, ?, ?)",
+                    (title, subject, category, deadline_date, deadline_date)
+                )
                 conn.commit()
                 item_id = cursor.lastrowid
-                return self._send_json(201, {"id": item_id, "title": title, "subject": subject, "category": category, "deadline_date": deadline_date, "date": deadline_date})
+                return self._send_json(201, {
+                    "id": item_id,
+                    "title": title,
+                    "subject": subject,
+                    "category": category,
+                    "deadline_date": deadline_date,
+                    "date": deadline_date
+                })
 
-            # 6. Save Exam
+            # 8. Save Exam
             elif "exam" in path:
                 title = body.get("title") or body.get("exam_name") or "Exam"
                 exact_date = body.get("exact_date") or body.get("date") or time.strftime("%Y-%m-%d")
@@ -414,3 +439,14 @@ class handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         return self._send_json(200, {"status": "updated"})
+
+# Local Development Server Runner with CORS & Port 8000 Binding
+if __name__ == "__main__":
+    server_address = ("127.0.0.1", 8000)
+    httpd = HTTPServer(server_address, handler)
+    print("🚀 Local SQLite Backend running on http://127.0.0.1:8000")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\n🛑 Backend server stopped.")
+        httpd.server_close()
