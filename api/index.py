@@ -276,10 +276,11 @@ class handler(BaseHTTPRequestHandler):
 
         try:
            # 1. Register User
+          # 1. Register
             if "register" in path:
                 full_name = body.get("full_name", "").strip() or "User"
                 email = body.get("email", "").lower().strip()
-                password = body.get("password", "")
+                password = str(body.get("password", ""))
 
                 cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
                 if cursor.fetchone():
@@ -290,12 +291,16 @@ class handler(BaseHTTPRequestHandler):
                 conn.commit()
                 user_id = cursor.lastrowid
                 token = create_access_token({"sub": str(user_id), "email": email})
-                return self._send_json(201, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
+                return self._send_json(201, {
+                    "access_token": token, 
+                    "token": token,
+                    "user": {"id": user_id, "full_name": full_name, "email": email}
+                })
 
-            # 2. Login User
+            # 2. Login
             elif "login" in path:
                 email = body.get("email", "").lower().strip()
-                password = body.get("password", "")
+                password = str(body.get("password", ""))
 
                 cursor.execute("SELECT id, full_name, hashed_password FROM users WHERE email = ?", (email,))
                 user = cursor.fetchone()
@@ -305,21 +310,33 @@ class handler(BaseHTTPRequestHandler):
                     full_name = user[1]
                     hashed_pwd = user[2]
                     
-                    # Verify password or rehash if unhashed
+                    # Password verify check
+                    is_valid = False
                     if verify_password(password, hashed_pwd) or password == hashed_pwd:
-                        token = create_access_token({"sub": str(user_id), "email": email})
-                        return self._send_json(200, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
-                    else:
+                        is_valid = True
+                    
+                    if not is_valid:
                         return self._send_json(401, {"detail": "Invalid credentials"})
+
+                    token = create_access_token({"sub": str(user_id), "email": email})
+                    return self._send_json(200, {
+                        "access_token": token, 
+                        "token": token,
+                        "user": {"id": user_id, "full_name": full_name, "email": email}
+                    })
                 else:
-                    # Auto register fallback on first login attempt
+                    # Auto-register if first time login
                     hashed_pwd = get_password_hash(password)
                     full_name = email.split("@")[0].capitalize()
                     cursor.execute("INSERT INTO users (full_name, email, hashed_password) VALUES (?, ?, ?)", (full_name, email, hashed_pwd))
                     conn.commit()
                     user_id = cursor.lastrowid
                     token = create_access_token({"sub": str(user_id), "email": email})
-                    return self._send_json(200, {"access_token": token, "user": {"id": user_id, "full_name": full_name, "email": email}})
+                    return self._send_json(200, {
+                        "access_token": token, 
+                        "token": token,
+                        "user": {"id": user_id, "full_name": full_name, "email": email}
+                    })
             # 3. Create Task / Todo
             elif "todo" in path or "task" in path:
                 title = body.get("title") or body.get("task") or "New Task"
