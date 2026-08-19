@@ -1,22 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import API from '../services/api';
-import { Plus, Trash2, CheckCircle2, Circle, CheckSquare, Search, Filter } from 'lucide-react';
+import API, { getCachedData, saveCacheData } from '../services/api';
+import { Plus, Trash2, CheckCircle2, Circle, CheckSquare, Search } from 'lucide-react';
 import './TodosPage.css';
 
 export default function TodosPage() {
-  const [todos, setTodos] = useState([]);
+  // Instant Load from Cache
+  const [todos, setTodos] = useState(() => getCachedData('jpw_cache_todos', []));
   const [taskInput, setTaskInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all'); // 'all' | 'pending' | 'completed'
+  const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(false);
 
   const fetchTodos = async () => {
     try {
       const res = await API.get('/todos/');
-      setTodos(res.data);
+      if (Array.isArray(res.data)) {
+        const normalized = res.data.map(t => ({
+          ...t,
+          task: t.task || t.title,
+          is_completed: t.is_completed ?? t.completed ?? false
+        }));
+        setTodos(normalized);
+        saveCacheData('jpw_cache_todos', normalized);
+      }
     } catch (err) {
-      console.error('Failed to load todos:', err);
+      console.warn('Loaded todos from local cache');
     }
   };
 
@@ -29,44 +38,69 @@ export default function TodosPage() {
     if (!taskInput.trim()) return;
 
     setLoading(true);
+    const tempTodo = {
+      id: Date.now(),
+      task: taskInput.trim(),
+      title: taskInput.trim(),
+      is_completed: false,
+      completed: false
+    };
+
+    // Instant UI + Cache Update
+    const updated = [tempTodo, ...todos];
+    setTodos(updated);
+    saveCacheData('jpw_cache_todos', updated);
+    setTaskInput('');
+
     try {
-      const res = await API.post('/todos/', { task: taskInput.trim() });
-      setTodos([res.data, ...todos]);
-      setTaskInput('');
+      const res = await API.post('/todos/', { task: tempTodo.task, title: tempTodo.task });
+      if (res.data && res.data.id) {
+        const finalized = todos.map(t => t.id === tempTodo.id ? { ...res.data, task: res.data.task || res.data.title, is_completed: false } : t);
+        setTodos(finalized);
+        saveCacheData('jpw_cache_todos', finalized);
+      }
     } catch (err) {
-      console.error('Failed to create task:', err);
+      console.warn('Offline task saved to local cache');
     } finally {
       setLoading(false);
     }
   };
 
   const handleToggleTodo = async (id) => {
+    const updated = todos.map(t => t.id === id ? { ...t, is_completed: !t.is_completed, completed: !t.is_completed } : t);
+    setTodos(updated);
+    saveCacheData('jpw_cache_todos', updated);
+
     try {
       await API.patch(`/todos/${id}/toggle`);
-      setTodos(todos.map(t => t.id === id ? { ...t, is_completed: !t.is_completed } : t));
     } catch (err) {
-      console.error('Failed to toggle task:', err);
+      console.warn('Toggled locally');
     }
   };
 
   const handleDeleteTodo = async (id) => {
+    const updated = todos.filter(t => t.id !== id);
+    setTodos(updated);
+    saveCacheData('jpw_cache_todos', updated);
+
     try {
       await API.delete(`/todos/${id}`);
-      setTodos(todos.filter(t => t.id !== id));
     } catch (err) {
-      console.error('Failed to delete task:', err);
+      console.warn('Deleted locally');
     }
   };
 
   const filteredTodos = todos.filter(t => {
-    const matchesSearch = t.task.toLowerCase().includes(searchTerm.toLowerCase());
-    if (filter === 'pending') return matchesSearch && !t.is_completed;
-    if (filter === 'completed') return matchesSearch && t.is_completed;
+    const taskName = (t.task || t.title || '').toLowerCase();
+    const matchesSearch = taskName.includes(searchTerm.toLowerCase());
+    const isDone = t.is_completed || t.completed;
+    if (filter === 'pending') return matchesSearch && !isDone;
+    if (filter === 'completed') return matchesSearch && isDone;
     return matchesSearch;
   });
 
-  const pendingCount = todos.filter(t => !t.is_completed).length;
-  const completedCount = todos.filter(t => t.is_completed).length;
+  const pendingCount = todos.filter(t => !(t.is_completed || t.completed)).length;
+  const completedCount = todos.filter(t => (t.is_completed || t.completed)).length;
 
   return (
     <div className="dashboard-layout">
@@ -80,7 +114,6 @@ export default function TodosPage() {
           </div>
         </header>
 
-        {/* Task Creator Form */}
         <div className="add-todo-card">
           <form onSubmit={handleAddTodo} className="todos-main-form">
             <div className="todo-input-wrap">
@@ -97,7 +130,6 @@ export default function TodosPage() {
           </form>
         </div>
 
-        {/* Filter Controls & Search */}
         <div className="todos-control-bar">
           <div className="filter-chips">
             <button 
@@ -131,7 +163,6 @@ export default function TodosPage() {
           </div>
         </div>
 
-        {/* Tasks List */}
         <div className="todos-list-container">
           {filteredTodos.length === 0 ? (
             <div className="empty-state">
@@ -140,30 +171,33 @@ export default function TodosPage() {
             </div>
           ) : (
             <div className="todos-grid">
-              {filteredTodos.map((todo) => (
-                <div key={todo.id} className={`todo-page-card ${todo.is_completed ? 'done' : ''}`}>
-                  <button 
-                    className="toggle-task-btn" 
-                    onClick={() => handleToggleTodo(todo.id)}
-                  >
-                    {todo.is_completed ? (
-                      <CheckCircle2 size={20} color="#10b981" />
-                    ) : (
-                      <Circle size={20} color="#94a3b8" />
-                    )}
-                  </button>
+              {filteredTodos.map((todo) => {
+                const isDone = todo.is_completed || todo.completed;
+                return (
+                  <div key={todo.id} className={`todo-page-card ${isDone ? 'done' : ''}`}>
+                    <button 
+                      className="toggle-task-btn" 
+                      onClick={() => handleToggleTodo(todo.id)}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 size={20} color="#10b981" />
+                      ) : (
+                        <Circle size={20} color="#94a3b8" />
+                      )}
+                    </button>
 
-                  <span className="task-content">{todo.task}</span>
+                    <span className="task-content">{todo.task || todo.title}</span>
 
-                  <button 
-                    className="delete-task-btn" 
-                    onClick={() => handleDeleteTodo(todo.id)}
-                    title="Delete task"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
+                    <button 
+                      className="delete-task-btn" 
+                      onClick={() => handleDeleteTodo(todo.id)}
+                      title="Delete task"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

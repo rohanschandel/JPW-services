@@ -1,36 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import API from '../services/api';
+import API, { getCachedData, saveCacheData } from '../services/api';
 import { 
   BookOpen, 
   Plus, 
   Trash2, 
   AlertCircle, 
   Calendar, 
-  FolderKanban,
-  CheckCircle2
+  FolderKanban, 
+  CheckCircle2 
 } from 'lucide-react';
 import './ExamsTracker.css';
 
 export default function ExamsTracker() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const [formData, setFormData] = useState({
-    type: 'Assignment',
-    title: '',
-    subject: '',
-    deadline_date: ''
-  });
-
-  // Sorting helper: Past items go to bottom, nearest upcoming on top
   const sortUpcomingDeadlines = (data) => {
+    if (!Array.isArray(data)) return [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     return [...data].sort((a, b) => {
-      const dateA = new Date(a.deadline_date);
-      const dateB = new Date(b.deadline_date);
+      const dateA = new Date(a.deadline_date || a.date);
+      const dateB = new Date(b.deadline_date || b.date);
       dateA.setHours(0, 0, 0, 0);
       dateB.setHours(0, 0, 0, 0);
 
@@ -43,18 +33,33 @@ export default function ExamsTracker() {
     });
   };
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  // Instant Load from Cache
+  const [items, setItems] = useState(() => sortUpcomingDeadlines(getCachedData('jpw_cache_deadlines', [])));
+  const [loading, setLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    type: 'Assignment',
+    title: '',
+    subject: '',
+    deadline_date: ''
+  });
 
   const fetchItems = async () => {
     try {
       const res = await API.get('/assignments/');
-      setItems(sortUpcomingDeadlines(res.data));
+      if (res.data && Array.isArray(res.data)) {
+        const sorted = sortUpcomingDeadlines(res.data);
+        setItems(sorted);
+        saveCacheData('jpw_cache_deadlines', sorted);
+      }
     } catch (err) {
-      console.error('Error fetching tracker items:', err);
+      console.warn('Syncing from cache fallback');
     }
   };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -65,35 +70,49 @@ export default function ExamsTracker() {
     if (!formData.title.trim() || !formData.deadline_date) return;
 
     setLoading(true);
+    const tempItem = {
+      id: Date.now(),
+      title: formData.title.trim(),
+      subject: formData.type === 'Project' ? `[Project] ${formData.subject.trim() || 'General'}` : formData.subject.trim(),
+      deadline_date: formData.deadline_date,
+      date: formData.deadline_date
+    };
+
+    // Instant UI + Cache Update
+    const updated = sortUpcomingDeadlines([tempItem, ...items]);
+    setItems(updated);
+    saveCacheData('jpw_cache_deadlines', updated);
+
+    setFormData({
+      type: 'Assignment',
+      title: '',
+      subject: '',
+      deadline_date: ''
+    });
+
     try {
-      const payload = {
-        title: formData.title.trim(),
-        subject: formData.type === 'Project' ? `[Project] ${formData.subject.trim() || 'General'}` : formData.subject.trim(),
-        deadline_date: formData.deadline_date
-      };
-
-      const res = await API.post('/assignments/', payload);
-      setItems(sortUpcomingDeadlines([...items, res.data]));
-
-      setFormData({
-        type: 'Assignment',
-        title: '',
-        subject: '',
-        deadline_date: ''
-      });
+      const res = await API.post('/assignments/', tempItem);
+      if (res.data && res.data.id) {
+        const finalized = items.map(i => i.id === tempItem.id ? res.data : i);
+        setItems(sortUpcomingDeadlines(finalized));
+        saveCacheData('jpw_cache_deadlines', finalized);
+      }
     } catch (err) {
-      console.error('Error adding item:', err);
+      console.error('Save to server queued in cache');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteItem = async (id) => {
+    const updated = items.filter((item) => item.id !== id);
+    setItems(updated);
+    saveCacheData('jpw_cache_deadlines', updated);
+
     try {
       await API.delete(`/assignments/${id}`);
-      setItems(items.filter((item) => item.id !== id));
     } catch (err) {
-      console.error('Error deleting item:', err);
+      console.error('Delete request failed on server');
     }
   };
 
@@ -215,7 +234,7 @@ export default function ExamsTracker() {
 
                           <div className="date-tag">
                             <Calendar size={13} />
-                            <span>{new Date(item.deadline_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                            <span>{new Date(item.deadline_date || item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                           </div>
                         </div>
 

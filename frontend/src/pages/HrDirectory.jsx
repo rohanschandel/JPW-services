@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import API from '../services/api';
+import API, { getCachedData, saveCacheData } from '../services/api';
 import { 
   Users, 
   Plus, 
@@ -15,12 +15,12 @@ import {
 import './HrDirectory.css';
 
 export default function HrDirectory() {
-  const [contacts, setContacts] = useState([]);
+  // Instant Load from Cache
+  const [contacts, setContacts] = useState(() => getCachedData('jpw_cache_hr', []));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Exact matching keys with schemas
   const [formData, setFormData] = useState({
     hr_name: '',
     company_name: '',
@@ -32,10 +32,12 @@ export default function HrDirectory() {
   const fetchContacts = async () => {
     try {
       const res = await API.get('/hr/');
-      setContacts(Array.isArray(res.data) ? res.data : []);
+      if (Array.isArray(res.data)) {
+        setContacts(res.data);
+        saveCacheData('jpw_cache_hr', res.data);
+      }
     } catch (err) {
-      console.error('Failed to load HR contacts:', err);
-      setContacts([]);
+      console.warn('Using cached HR contacts');
     }
   };
 
@@ -52,41 +54,53 @@ export default function HrDirectory() {
     if (!formData.hr_name.trim() || !formData.company_name.trim()) return;
 
     setLoading(true);
+    const tempContact = {
+      id: Date.now(),
+      hr_name: formData.hr_name.trim(),
+      company_name: formData.company_name.trim(),
+      hr_number: formData.hr_number.trim(),
+      email_id: formData.email_id.trim(),
+      location: formData.location.trim()
+    };
+
+    // Instant UI + Cache Update
+    const updated = [tempContact, ...contacts];
+    setContacts(updated);
+    saveCacheData('jpw_cache_hr', updated);
+
+    setFormData({
+      hr_name: '',
+      company_name: '',
+      hr_number: '',
+      email_id: '',
+      location: ''
+    });
+    setIsModalOpen(false);
+
     try {
-      const res = await API.post('/hr/', {
-        hr_name: formData.hr_name.trim(),
-        company_name: formData.company_name.trim(),
-        hr_number: formData.hr_number.trim(),
-        email_id: formData.email_id.trim(),
-        location: formData.location.trim()
-      });
-      
+      const res = await API.post('/hr/', tempContact);
       const newContact = res.data?.data || res.data;
-      setContacts([newContact, ...contacts]);
-      setFormData({
-        hr_name: '',
-        company_name: '',
-        hr_number: '',
-        email_id: '',
-        location: ''
-      });
-      setIsModalOpen(false);
+      if (newContact && newContact.id) {
+        const finalized = contacts.map(c => c.id === tempContact.id ? newContact : c);
+        setContacts(finalized);
+        saveCacheData('jpw_cache_hr', finalized);
+      }
     } catch (err) {
-      console.error('Failed to save HR contact:', err);
-      alert('Error saving contact. Please check connection.');
+      console.warn('Offline mode: Contact saved to local cache');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteContact = async (id) => {
+    const updated = contacts.filter((c) => c.id !== id);
+    setContacts(updated);
+    saveCacheData('jpw_cache_hr', updated);
+
     try {
       await API.delete(`/hr/${id}`);
-      setContacts(contacts.filter((c) => c.id !== id));
     } catch (err) {
-      console.error('Failed to delete HR contact:', err);
-      // Fallback local deletion
-      setContacts(contacts.filter((c) => c.id !== id));
+      console.warn('Deleted locally');
     }
   };
 
@@ -106,7 +120,6 @@ export default function HrDirectory() {
       <Sidebar />
 
       <main className="dashboard-main">
-        {/* Header */}
         <header className="page-header hr-header">
           <div>
             <h1>Recruiter <span>CRM</span></h1>
@@ -118,7 +131,6 @@ export default function HrDirectory() {
           </button>
         </header>
 
-        {/* Controls Bar */}
         <div className="hr-controls-bar">
           <div className="search-bar">
             <Search size={16} color="#94a3b8" />
@@ -135,7 +147,6 @@ export default function HrDirectory() {
           </div>
         </div>
 
-        {/* Contacts Cards Display */}
         {filteredContacts.length === 0 ? (
           <div className="empty-state" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
             <Users size={44} color="#334155" style={{ margin: '0 auto 12px' }} />
@@ -145,7 +156,6 @@ export default function HrDirectory() {
           <div className="hr-grid">
             {filteredContacts.map((contact, idx) => (
               <div key={contact.id || idx} className="hr-exact-card">
-                {/* Top Row: Name + Delete Icon */}
                 <div className="hr-exact-top">
                   <h3 className="hr-exact-name">{contact.hr_name}</h3>
                   <button 
@@ -157,7 +167,6 @@ export default function HrDirectory() {
                   </button>
                 </div>
 
-                {/* Company Name */}
                 {contact.company_name && (
                   <div className="hr-exact-row company-row">
                     <Building2 size={16} className="icon-blue" />
@@ -165,7 +174,6 @@ export default function HrDirectory() {
                   </div>
                 )}
 
-                {/* Phone / WhatsApp */}
                 {contact.hr_number && (
                   <div className="hr-exact-row">
                     <Phone size={16} className="icon-green" />
@@ -173,7 +181,6 @@ export default function HrDirectory() {
                   </div>
                 )}
 
-                {/* Gmail / Work Email */}
                 {contact.email_id && (
                   <div className="hr-exact-row">
                     <Mail size={16} className="icon-blue-email" />
@@ -181,7 +188,6 @@ export default function HrDirectory() {
                   </div>
                 )}
 
-                {/* Job Location */}
                 {contact.location && (
                   <div className="hr-exact-row">
                     <MapPin size={16} className="icon-orange" />
@@ -193,7 +199,6 @@ export default function HrDirectory() {
           </div>
         )}
 
-        {/* Popup Modal */}
         {isModalOpen && (
           <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
             <div className="modal-container" onClick={(e) => e.stopPropagation()}>

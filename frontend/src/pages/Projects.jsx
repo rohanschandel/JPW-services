@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import API from '../services/api';
+import API, { getCachedData, saveCacheData } from '../services/api';
 import { 
   FolderGit2, 
   Plus, 
-  ExternalLink, 
   Github, 
   Trash2, 
   Globe 
@@ -12,7 +11,8 @@ import {
 import './Projects.css';
 
 export default function Projects() {
-  const [projects, setProjects] = useState([]);
+  // Instant Load from Cache
+  const [projects, setProjects] = useState(() => getCachedData('jpw_cache_projects', []));
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -25,9 +25,12 @@ export default function Projects() {
   const fetchProjects = async () => {
     try {
       const res = await API.get('/projects/');
-      setProjects(res.data);
+      if (Array.isArray(res.data)) {
+        setProjects(res.data);
+        saveCacheData('jpw_cache_projects', res.data);
+      }
     } catch (err) {
-      console.error('Failed to load projects:', err);
+      console.warn('Loaded projects from local cache');
     }
   };
 
@@ -37,7 +40,6 @@ export default function Projects() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Strict 23 characters check for project title/name
     if (name === 'name') {
       setFormData({ ...formData, [name]: value.slice(0, 23) });
     } else {
@@ -50,33 +52,51 @@ export default function Projects() {
     if (!formData.name.trim() || !formData.live_url.trim()) return;
 
     setLoading(true);
+    const tempProject = {
+      id: Date.now(),
+      title: formData.name.trim().slice(0, 23),
+      project_title: formData.name.trim().slice(0, 23),
+      name: formData.name.trim().slice(0, 23),
+      live_url: formData.live_url.trim(),
+      github_url: formData.github_url.trim(),
+      status: formData.status
+    };
+
+    // Instant UI + Cache Update
+    const updated = [tempProject, ...projects];
+    setProjects(updated);
+    saveCacheData('jpw_cache_projects', updated);
+
+    setFormData({
+      name: '',
+      live_url: '',
+      github_url: '',
+      status: 'Live'
+    });
+
     try {
-      const res = await API.post('/projects/', {
-        ...formData,
-        name: formData.name.trim().slice(0, 23),
-        live_url: formData.live_url.trim(),
-        github_url: formData.github_url.trim()
-      });
-      setProjects([res.data, ...projects]);
-      setFormData({
-        name: '',
-        live_url: '',
-        github_url: '',
-        status: 'Live'
-      });
+      const res = await API.post('/projects/', tempProject);
+      if (res.data && res.data.id) {
+        const finalized = projects.map(p => p.id === tempProject.id ? res.data : p);
+        setProjects(finalized);
+        saveCacheData('jpw_cache_projects', finalized);
+      }
     } catch (err) {
-      console.error('Failed to save project:', err);
+      console.warn('Backend sync failed, saved locally');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteProject = async (id) => {
+    const updated = projects.filter((p) => p.id !== id);
+    setProjects(updated);
+    saveCacheData('jpw_cache_projects', updated);
+
     try {
       await API.delete(`/projects/${id}`);
-      setProjects(projects.filter((p) => p.id !== id));
     } catch (err) {
-      console.error('Failed to delete project:', err);
+      console.warn('Deleted locally');
     }
   };
 
@@ -98,7 +118,6 @@ export default function Projects() {
       <Sidebar />
 
       <main className="dashboard-main">
-        {/* Header */}
         <header className="page-header">
           <div>
             <h1>Project Portfolio & <span>Links</span></h1>
@@ -173,46 +192,49 @@ export default function Projects() {
               <p>No projects cataloged yet. Add your first project above.</p>
             </div>
           ) : (
-            projects.map((project) => (
-              <div key={project.id} className="project-card">
-                <div className="project-card-top">
-                  <h3 className="project-title" title={project.name}>{project.name}</h3>
-                  <span className={`status-pill ${getStatusBadgeClass(project.status)}`}>
-                    {project.status}
-                  </span>
-                </div>
+            projects.map((project) => {
+              const projectTitle = project.name || project.title || project.project_title || 'Project';
+              return (
+                <div key={project.id} className="project-card">
+                  <div className="project-card-top">
+                    <h3 className="project-title" title={projectTitle}>{projectTitle}</h3>
+                    <span className={`status-pill ${getStatusBadgeClass(project.status)}`}>
+                      {project.status || 'Live'}
+                    </span>
+                  </div>
 
-                <div className="project-card-actions">
-                  <a
-                    href={project.live_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="project-action-link"
-                  >
-                    <Globe size={14} /> Open Live Site
-                  </a>
-
-                  {project.github_url && (
+                  <div className="project-card-actions">
                     <a
-                      href={project.github_url}
+                      href={project.live_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="project-action-link"
                     >
-                      <Github size={14} /> GitHub Repo
+                      <Globe size={14} /> Open Live Site
                     </a>
-                  )}
 
-                  <button
-                    onClick={() => handleDeleteProject(project.id)}
-                    className="project-delete-btn"
-                    title="Delete Project"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                    {project.github_url && (
+                      <a
+                        href={project.github_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="project-action-link"
+                      >
+                        <Github size={14} /> GitHub Repo
+                      </a>
+                    )}
+
+                    <button
+                      onClick={() => handleDeleteProject(project.id)}
+                      className="project-delete-btn"
+                      title="Delete Project"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </main>
